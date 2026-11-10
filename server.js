@@ -55,26 +55,45 @@ app.get('/login.html', (req, res) => {
   res.sendFile(path.join(__dirname, 'login.html'));
 });
 
-// حالة الاتصال بقاعدة البيانات
+// حالة الاتصال بقاعدة البيانات وإعادة استخدام الاتصال في Serverless
 let isDbConnected = false;
+let dbConnectingPromise = null;
 
-// الاتصال بقاعدة بيانات MongoDB
 async function connectToDatabase() {
-  try {
-    await mongoose.connect(MONGODB_URI, {
-      serverSelectionTimeoutMS: 5000
-    });
+  if (mongoose.connection.readyState === 1) {
     isDbConnected = true;
-    console.log('✅ تم الاتصال بقاعدة بيانات MongoDB بنجاح:', MONGODB_URI);
-    await seedDefaultAdmin();
-  } catch (err) {
-    isDbConnected = false;
-    console.warn('⚠️ تحذير: تعذر الاتصال بـ MongoDB حالياً:', err.message);
-    console.warn('💡 تأكد من تشغيل خادم MongoDB محلياً أو وضع رابط MongoDB Atlas السحابي في ملف .env');
+    return;
   }
+
+  if (dbConnectingPromise) {
+    return dbConnectingPromise;
+  }
+
+  dbConnectingPromise = mongoose.connect(MONGODB_URI, {
+    serverSelectionTimeoutMS: 5000,
+    bufferCommands: false
+  }).then(async () => {
+    isDbConnected = true;
+    console.log('✅ تم الاتصال بقاعدة بيانات MongoDB بنجاح');
+    await seedDefaultAdmin();
+  }).catch((err) => {
+    isDbConnected = false;
+    dbConnectingPromise = null;
+    console.warn('⚠️ تحذير: تعذر الاتصال بـ MongoDB حالياً:', err.message);
+  });
+
+  return dbConnectingPromise;
 }
 
-connectToDatabase();
+// Middleware لضمان اتصال قاعدة البيانات قبل تنفيذ أي طلب API على Vercel Serverless
+app.use(async (req, res, next) => {
+  if (req.path.startsWith('/api')) {
+    try {
+      await connectToDatabase();
+    } catch (e) {}
+  }
+  next();
+});
 
 // إنشاء حساب الأدمن الافتراضي إن لم يكن موجوداً
 async function seedDefaultAdmin() {

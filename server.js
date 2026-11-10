@@ -30,6 +30,31 @@ app.use(express.urlencoded({ extended: true, limit: '20mb' }));
 // مسار خدمة الملفات الثابتة (Frontend Static Files)
 app.use(express.static(path.join(__dirname, '.')));
 
+// توجيه المسار الرئيسي والصفحات الثابتة بشكل صريح للعمل السليم على Vercel Serverless
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+app.get('/index.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+app.get('/admin', (req, res) => {
+  res.sendFile(path.join(__dirname, 'admin.html'));
+});
+
+app.get('/admin.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'admin.html'));
+});
+
+app.get('/login', (req, res) => {
+  res.sendFile(path.join(__dirname, 'login.html'));
+});
+
+app.get('/login.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'login.html'));
+});
+
 // حالة الاتصال بقاعدة البيانات
 let isDbConnected = false;
 

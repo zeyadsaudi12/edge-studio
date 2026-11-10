@@ -84,39 +84,115 @@ document.addEventListener('DOMContentLoaded', () => {
     return [...customProjects, ...unoverriddenBase];
   }
 
-  async function renderPortfolio(category = 'all') {
+  let currentPortfolioCategory = 'all';
+  let isShowingAllGallery = false;
+
+  function updateHomeCategoryCounters(allItems) {
+    const total = allItems.length;
+    const cats = ['posts', 'covers', 'frames', 'profiles', 'thum', 'certificates', 'social', 'print', 'branding'];
+    const elAll = document.getElementById('home-count-all');
+    if (elAll) elAll.textContent = total;
+    cats.forEach(c => {
+      const el = document.getElementById(`home-count-${c}`);
+      if (el) el.textContent = allItems.filter(p => p.category === c).length;
+    });
+  }
+
+  async function renderPortfolio(category = 'all', forceShowAll = false) {
     if (!portfolioContainer) return;
 
+    currentPortfolioCategory = category;
     portfolioContainer.innerHTML = '';
     const allItems = await fetchServerProjects();
+    updateHomeCategoryCounters(allItems);
+
     const filteredItems = category === 'all'
       ? allItems
       : allItems.filter(item => item.category === category);
 
+    const showingInfo = document.getElementById('portfolio-showing-info');
+    const btnViewAll = document.getElementById('btn-view-all-gallery');
+
     if (filteredItems.length === 0) {
+      if (showingInfo) showingInfo.textContent = '';
       portfolioContainer.innerHTML = `
         <div style="grid-column: 1 / -1; text-align:center; padding:3.5rem; background:var(--bg-card); border:1px dashed var(--border-subtle); border-radius:16px; color:var(--text-muted);">
           <i class="fa-solid fa-folder-open fa-3x" style="margin-bottom:1rem; opacity:0.4; color:var(--edge-cyan-glow); display:block;"></i>
           لا توجد أعمال معروضة في هذا القسم حالياً. ترقبوا إضافات جديدة قريباً!
         </div>
       `;
+      if (btnViewAll) {
+        btnViewAll.innerHTML = `<i class="fa-solid fa-border-all"></i> العودة لعرض جميع الأقسام (${allItems.length} تصميم)`;
+      }
       return;
     }
 
-    // في الصفحة الرئيسية: عرض المشاريع المحددة فقط بحد أقصى (مثلاً 5 إلى 6 تصاميم مميزة)
-    const homeItems = filteredItems
-      .filter(item => item.showInHome !== false)
-      .slice(0, 6);
+    let itemsToDisplay = [];
+    const catTitles = {
+      all: 'جميع التصاميم',
+      posts: 'بوستات (Posts)',
+      covers: 'أغلفة (Covers)',
+      frames: 'إطارات (Frames)',
+      profiles: 'بروفايلات (Profiles)',
+      thum: 'صور مصغرة (Thum)',
+      certificates: 'شهادات تقدير',
+      social: 'سوشيال ميديا',
+      print: 'مطبوعات وتغليف',
+      branding: 'هويات بصرية'
+    };
 
-    const itemsToDisplay = homeItems.length > 0 ? homeItems : filteredItems.slice(0, 6);
+    if (category !== 'all') {
+      // عند اختيار أي تصنيف: عرض كااااامل الأعمال في هذا القسم مباشرة بدون الانتقال لصفحة أخرى
+      itemsToDisplay = filteredItems;
+      if (showingInfo) {
+        showingInfo.innerHTML = `يتم عرض جميع تصاميم <strong>${catTitles[category] || category}</strong> (${itemsToDisplay.length} تصميم)`;
+      }
+      if (btnViewAll) {
+        btnViewAll.style.display = 'inline-flex';
+        btnViewAll.innerHTML = `
+          <i class="fa-solid fa-border-all"></i> العودة لعرض جميع الأقسام (${allItems.length} تصميم)
+          <i class="fa-solid fa-arrow-left" style="margin-right:0.5rem; font-size:0.9rem;"></i>
+        `;
+      }
+    } else {
+      // في قسم "الكل": تبديل بين عرض نماذج مختارة أو كامل المعرض في نفس الصفحة
+      if (isShowingAllGallery || forceShowAll) {
+        isShowingAllGallery = true;
+        itemsToDisplay = allItems;
+        if (showingInfo) {
+          showingInfo.innerHTML = `يتم الآن عرض <strong>كافة أعمال الاستوديو بالكامل</strong> (${itemsToDisplay.length} تصميم)`;
+        }
+        if (btnViewAll) {
+          btnViewAll.style.display = 'inline-flex';
+          btnViewAll.innerHTML = `
+            <i class="fa-solid fa-compress"></i> عرض نماذج مختارة فقط
+            <i class="fa-solid fa-chevron-up" style="margin-right:0.5rem; font-size:0.9rem;"></i>
+          `;
+        }
+      } else {
+        const homeItems = allItems.filter(item => item.showInHome !== false);
+        itemsToDisplay = homeItems.length > 0 ? homeItems.slice(0, 8) : allItems.slice(0, 8);
+        if (showingInfo) {
+          showingInfo.innerHTML = `يتم عرض <strong>${itemsToDisplay.length}</strong> نماذج مختارة من أصل <strong>${allItems.length}</strong> تصميم`;
+        }
+        if (btnViewAll) {
+          btnViewAll.style.display = 'inline-flex';
+          btnViewAll.innerHTML = `
+            <i class="fa-solid fa-layer-group"></i> عرض جميع التصاميم بالكامل (${allItems.length} تصميم)
+            <i class="fa-solid fa-chevron-down" style="margin-right:0.5rem; font-size:0.9rem;"></i>
+          `;
+        }
+      }
+    }
 
-    itemsToDisplay.forEach((item, index) => {
+    itemsToDisplay.forEach((item) => {
       const card = document.createElement('div');
       card.className = 'portfolio-card';
       card.setAttribute('data-category', item.category);
+      card.style.cursor = 'pointer';
 
       const tagsHtml = item.tags
-        ? item.tags.map(tag => `<span class="tag-badge">${tag}</span>`).join('')
+        ? item.tags.map(tag => `<span class="tag-badge">#${tag}</span>`).join('')
         : '';
 
       card.innerHTML = `
@@ -124,8 +200,11 @@ document.addEventListener('DOMContentLoaded', () => {
           <img src="${item.image}" alt="${item.title}" class="portfolio-thumb" loading="lazy">
           <div class="portfolio-overlay">
             <button class="overlay-btn view-project-btn" data-id="${item.id}">
-              <i class="fa-solid fa-expand"></i> معاينة وتفاصيل المشروع
+              <i class="fa-solid fa-expand"></i> معاينة وتفاصيل
             </button>
+          </div>
+          <div class="mobile-tap-hint">
+            <i class="fa-solid fa-magnifying-glass-plus"></i> اضغط للمعاينة
           </div>
         </div>
         <div class="portfolio-body">
@@ -141,15 +220,12 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
       `;
 
-      portfolioContainer.appendChild(card);
-    });
-
-    // ربط أزرار المعاينة
-    document.querySelectorAll('.view-project-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const id = btn.getAttribute('data-id');
-        openPortfolioModal(id);
+      // فتح المعاينة عند النقر على الكارت كاملاً (مريح جداً للهواتف)
+      card.addEventListener('click', () => {
+        openPortfolioModal(item.id);
       });
+
+      portfolioContainer.appendChild(card);
     });
   }
 
@@ -160,23 +236,23 @@ document.addEventListener('DOMContentLoaded', () => {
       tab.classList.add('active');
       const cat = tab.getAttribute('data-filter') || 'all';
       renderPortfolio(cat);
-
-      // تحديث زر الانتقال لصفحة المعرض الكاملة حسب القسم المختار
-      const btnViewAll = document.getElementById('btn-view-all-gallery');
-      if (btnViewAll) {
-        const catTitles = {
-          all: 'جميع التصاميم',
-          social: 'تصاميم سوشيال ميديا',
-          print: 'مطبوعات وتغليف',
-          branding: 'هويات بصرية'
-        };
-        btnViewAll.href = cat === 'all' ? 'portfolio' : `portfolio?cat=${cat}`;
-        btnViewAll.innerHTML = `
-          <i class="fa-solid fa-layer-group"></i> تصفح كافة ${catTitles[cat] || 'التصاميم'} في صفحة مستقلة
-          <i class="fa-solid fa-arrow-up-right-from-square" style="margin-right:0.5rem; font-size:0.9rem;"></i>
-        `;
-      }
     });
+  });
+
+  // زر توسيع / تقليص المعرض في نفس الصفحة بدون الانتقال لصفحة أخرى
+  const btnViewAllGallery = document.getElementById('btn-view-all-gallery');
+  btnViewAllGallery?.addEventListener('click', () => {
+    if (currentPortfolioCategory !== 'all') {
+      portfolioTabs.forEach(t => {
+        if (t.getAttribute('data-filter') === 'all') t.classList.add('active');
+        else t.classList.remove('active');
+      });
+      isShowingAllGallery = true;
+      renderPortfolio('all', true);
+    } else {
+      isShowingAllGallery = !isShowingAllGallery;
+      renderPortfolio('all', isShowingAllGallery);
+    }
   });
 
   /* ==========================================================================

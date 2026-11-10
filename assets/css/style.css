@@ -1556,12 +1556,19 @@ img {
 }
 
 /* ==========================================================================
-   8. الاستجابة للشاشات (Responsive Media Queries)
+   8. الاستجابة الشاملة للهواتف والشاشات الصغيرة (Comprehensive Mobile Responsive)
    ========================================================================== */
+
+/* ملمح اللمس السريع على الهواتف */
+.mobile-tap-hint {
+  display: none;
+}
+
 @media (max-width: 992px) {
   .hero-grid {
     grid-template-columns: 1fr;
     text-align: center;
+    gap: 2.5rem;
   }
 
   .hero-buttons {
@@ -1574,72 +1581,351 @@ img {
 
   .hero-description {
     margin: 0 auto 2.2rem;
+    max-width: 600px;
   }
 
   .footer-grid {
     grid-template-columns: 1fr 1fr;
+    gap: 2rem;
   }
 }
 
 @media (max-width: 768px) {
+  /* تحسين إطار الصفحة ومنع أي اهتزاز عرضي */
+  html, body {
+    overflow-x: hidden !important;
+    width: 100% !important;
+  }
+
+  .container {
+    padding: 0 1.1rem;
+  }
+
+  /* شريط الترويسة والقائمة بالهواتف */
+  .site-header {
+    padding: 0.75rem 0;
+  }
+
   .nav-menu {
     position: fixed;
-    top: 80px;
+    top: 70px;
     right: -100%;
-    width: 80%;
+    width: 82%;
     max-width: 320px;
-    height: calc(100vh - 80px);
-    background: var(--bg-main);
+    height: calc(100vh - 70px);
+    background: rgba(3, 10, 24, 0.98);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     border-left: 1px solid var(--border-subtle);
     flex-direction: column;
-    padding: 2.5rem 1.8rem;
-    align-items: flex-start;
-    transition: right 0.35s ease;
-    box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5);
+    padding: 2rem 1.5rem;
+    align-items: stretch;
+    transition: right 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: -15px 0 40px rgba(0, 0, 0, 0.8);
+    z-index: 1000;
+    gap: 0.6rem;
   }
 
   .nav-menu.open {
     right: 0;
   }
 
+  .nav-link {
+    padding: 0.85rem 1rem;
+    border-radius: var(--radius-sm);
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid transparent;
+    display: flex;
+    align-items: center;
+    font-size: 1rem;
+  }
+
+  .nav-link:hover, .nav-link.active {
+    background: rgba(0, 86, 246, 0.15);
+    border-color: rgba(34, 211, 238, 0.3);
+    color: var(--edge-cyan-glow);
+  }
+
   .mobile-menu-btn {
-    display: block;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    color: #FFFFFF;
+    font-size: 1.25rem;
+  }
+
+  /* قسم الهيرو على الهواتف */
+  .hero-section {
+    padding: 4.5rem 0 3rem;
   }
 
   .hero-title {
-    font-size: 2.2rem;
+    font-size: 2rem;
+    line-height: 1.25;
+    margin-bottom: 1rem;
   }
 
-  .section-title {
-    font-size: 1.8rem;
+  .hero-subtitle, .hero-description {
+    font-size: 0.95rem;
+    line-height: 1.65;
   }
 
-  .wizard-stepper {
+  .hero-buttons {
     flex-direction: column;
-    align-items: flex-start;
-    gap: 1.2rem;
+    width: 100%;
+    gap: 0.8rem;
+  }
+
+  .hero-buttons .btn {
+    width: 100%;
+    justify-content: center;
+    padding: 0.85rem 1.4rem;
+    font-size: 1rem;
+  }
+
+  .hero-stats {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+    width: 100%;
+    margin-top: 1.5rem;
+  }
+
+  .hero-stat-item {
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    padding: 0.9rem 0.6rem;
+  }
+
+  .stat-num {
+    font-size: 1.5rem;
+  }
+
+  .stat-label {
+    font-size: 0.75rem;
+  }
+
+  /* العناوين العامة للأقسام */
+  .section-title {
+    font-size: 1.7rem;
+    line-height: 1.3;
+  }
+
+  .section-subtitle {
+    font-size: 0.9rem;
+    margin-bottom: 1.8rem;
+  }
+
+  /* شريط التبويبات المتحرك باللمس (Touch-Scrollable Chips) */
+  .portfolio-tabs {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    justify-content: flex-start !important;
+    padding: 0.4rem 0.2rem 1rem !important;
+    margin-bottom: 1.2rem !important;
+    scrollbar-width: none;
+    gap: 0.5rem !important;
+  }
+
+  .portfolio-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tab-btn {
+    flex-shrink: 0;
+    padding: 0.5rem 1.1rem;
+    font-size: 0.85rem;
+    border-radius: 50px;
+    white-space: nowrap;
+  }
+
+  /* شبكة الأعمال على الهواتف */
+  .portfolio-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1.25rem;
+  }
+
+  .portfolio-card {
+    border-radius: var(--radius-md);
+  }
+
+  .portfolio-thumb-wrap {
+    aspect-ratio: 16 / 10;
+  }
+
+  .portfolio-overlay {
+    display: none !important; /* إلغاء الـ hover المكتبي بالهواتف */
+  }
+
+  .mobile-tap-hint {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    background: rgba(3, 10, 24, 0.85);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    color: var(--edge-cyan-glow);
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 0.3rem 0.7rem;
+    border-radius: var(--radius-full);
+    border: 1px solid rgba(34, 211, 238, 0.35);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    pointer-events: none;
+  }
+
+  .portfolio-body {
+    padding: 1.1rem 1.2rem;
+  }
+
+  .portfolio-title {
+    font-size: 1.15rem;
+  }
+
+  /* نافذة المعاينة السريعة على الهواتف */
+  .modal-dialog {
+    width: 95% !important;
+    max-height: 94vh !important;
+    border-radius: var(--radius-md);
+  }
+
+  .modal-img-container {
+    max-height: 48vh !important;
+  }
+
+  .modal-details-body {
+    padding: 1.1rem 1.2rem !important;
+  }
+
+  .modal-close-btn {
+    width: 40px;
+    height: 40px;
+    top: 10px;
+    left: 10px;
+    font-size: 1.1rem;
+  }
+
+  /* الويزارد ونموذج الطلب بالهواتف */
+  .wizard-stepper {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 0.8rem;
+    gap: 0.3rem;
+    overflow-x: auto;
   }
 
   .step-indicator {
-    width: 100%;
+    width: auto;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.3rem;
+  }
+
+  .step-label {
+    display: none; /* إخفاء النص الطويل واستبداله برقم الدائرة الأنيق بالهواتف */
+  }
+
+  .step-num {
+    width: 32px;
+    height: 32px;
+    font-size: 0.85rem;
   }
 
   .wizard-content {
-    padding: 1.5rem;
+    padding: 1.2rem 1rem;
   }
 
   .wizard-footer {
-    padding: 1.2rem 1.5rem;
-    flex-direction: column;
-    gap: 1rem;
+    padding: 1rem;
+    flex-direction: column-reverse;
+    gap: 0.8rem;
   }
 
   .wizard-footer .btn {
     width: 100%;
+    padding: 0.85rem;
+    justify-content: center;
+  }
+
+  .service-cards-choice {
+    grid-template-columns: 1fr;
+    gap: 0.8rem;
+  }
+
+  .color-slots-grid {
+    grid-template-columns: 1fr;
+    gap: 0.8rem;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .form-input, .form-select, .form-textarea {
+    font-size: 16px; /* يمنع الزوم التلقائي في أجهزة الآيفون */
+  }
+
+  /* قسم الأسعار والباقات بالهواتف */
+  .pricing-cards-grid {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+
+  .price-card {
+    padding: 1.8rem 1.4rem;
+  }
+
+  /* الفوتر بالهواتف */
+  .site-footer {
+    padding: 3.5rem 0 2rem;
   }
 
   .footer-grid {
     grid-template-columns: 1fr;
+    gap: 2rem;
+    text-align: center;
+  }
+
+  .footer-brand {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .footer-social-links {
+    justify-content: center;
+  }
+
+  .footer-links {
+    align-items: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .hero-title {
+    font-size: 1.75rem;
+  }
+
+  .section-title {
+    font-size: 1.5rem;
+  }
+
+  .btn-lg {
+    font-size: 0.95rem;
+    padding: 0.8rem 1.2rem;
   }
 }
 

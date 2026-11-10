@@ -725,10 +725,49 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  function readFileAsBase64(file) {
+  function compressImageIfNeeded(file) {
     return new Promise((resolve) => {
+      // إذا لم يكن صورة عادية (مثل PDF أو SVG)، نقرأه كما هو
+      if (!file.type.startsWith('image/') || file.type === 'image/svg+xml') {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target.result);
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(file);
+        return;
+      }
+
+      // ضغط وتصغير الصور الكبيرة تلقائياً لتجنب حدود الحجم وضمان سرعة الإرسال الفائقة
       const reader = new FileReader();
-      reader.onload = (e) => resolve(e.target.result);
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const maxDimension = 1400; // دقة ممتازة جداً لمراجعة التصميم
+          let w = img.width;
+          let h = img.height;
+
+          if (w > maxDimension || h > maxDimension) {
+            if (w > h) {
+              h = Math.round((h * maxDimension) / w);
+              w = maxDimension;
+            } else {
+              w = Math.round((w * maxDimension) / h);
+              h = maxDimension;
+            }
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+
+          // تصدير الصورة المضغوطة بجودة 0.8
+          const compressed = canvas.toDataURL('image/jpeg', 0.82);
+          resolve(compressed);
+        };
+        img.onerror = () => resolve(e.target.result);
+        img.src = e.target.result;
+      };
       reader.onerror = () => resolve(null);
       reader.readAsDataURL(file);
     });
@@ -737,13 +776,13 @@ document.addEventListener('DOMContentLoaded', () => {
   async function handleFiles(files) {
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      // حد أقصى 8 ميجابايت للملف
-      if (file.size > 8 * 1024 * 1024) {
-        alert(`الملف "${file.name}" حجمه كبير جداً (أكبر من 8MB). يرجى تقليل حجمه أو إرساله عبر واتساب.`);
+      // أقصى حجم 15 ميجابايت قبل الضغط
+      if (file.size > 15 * 1024 * 1024) {
+        alert(`الملف "${file.name}" حجمه كبير جداً (أكبر من 15MB). يرجى تقليل حجمه أو إرساله عبر واتساب.`);
         continue;
       }
 
-      const dataUrl = await readFileAsBase64(file);
+      const dataUrl = await compressImageIfNeeded(file);
       orderState.uploadedFiles.push({
         name: file.name,
         type: file.type || 'application/octet-stream',
@@ -938,20 +977,33 @@ document.addEventListener('DOMContentLoaded', () => {
       paymentStatus: 'unpaid' // unpaid, deposit_paid, fully_paid
     };
 
-    // حفظ محلي في المتصفح
-    const orders = JSON.parse(localStorage.getItem('edge_orders') || '[]');
-    orders.unshift(newOrder);
-    localStorage.setItem('edge_orders', JSON.stringify(orders));
-
-    // إرسال فوري إلى خادم وقاعدة بيانات MongoDB
+    // حفظ نسخة خفيفة في localStorage لتجنب تجاوز مساحة المتصفح (QuotaExceededError)
     try {
-      await fetch('/api/orders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newOrder)
-      });
+      const lightOrder = {
+        ...newOrder,
+        uploadedFiles: (newOrder.uploadedFiles || []).map(f => ({
+          name: typeof f === 'string' ? f : f.name,
+          size: f.size,
+          type: f.type
+        }))
+      };
+      const orders = JSON.parse(localStorage.getItem('edge_orders') || '[]');
+      orders.unshift(lightOrder);
+      localStorage.setItem('edge_orders', JSON.stringify(orders.slice(0, 50)));
     } catch (e) {
-      console.log('Backend sync offline, stored locally in browser.');
+      console.warn('تجاوزت الطلبات مساحة localStorage، تم تجاوز التخزين المحلي والاعتماد على قاعدة البيانات.');
+    }
+
+    // إرسال كامل البيانات والملفات مباشرة إلى خادم وقاعدة بيانات MongoDB
+    const res = await fetch('/api/orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newOrder)
+    });
+
+    if (!res.ok) {
+      const errJson = await res.json().catch(() => ({}));
+      throw new Error(errJson.message || 'حدث خطأ في الخادم أثناء تسجيل الطلب');
     }
 
     return newOrder;

@@ -200,7 +200,7 @@
     </form>
 
     <div class="login-footer-links">
-      <a href="index.html">
+      <a href="/">
         <i class="fa-solid fa-arrow-right"></i> العودة للموقع الرئيسي
       </a>
     </div>
@@ -231,7 +231,7 @@
         .then(res => res.json())
         .then(data => {
           if (data.success && data.valid) {
-            window.location.href = 'admin.html';
+            window.location.href = 'admin';
           }
         })
         .catch(() => {});
@@ -275,7 +275,7 @@
             }
 
             setTimeout(() => {
-              window.location.href = 'admin.html';
+              window.location.href = 'admin';
             }, 800);
           } else {
             loginAlert.className = 'login-alert error';
@@ -294,7 +294,7 @@
             loginAlert.textContent = 'تم التحقق بنجاح! جاري التحويل...';
             loginAlert.style.display = 'block';
             setTimeout(() => {
-              window.location.href = 'admin.html';
+              window.location.href = 'admin';
             }, 800);
           } else {
             loginAlert.className = 'login-alert error';

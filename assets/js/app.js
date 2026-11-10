@@ -157,7 +157,7 @@ document.addEventListener('DOMContentLoaded', () => {
           print: 'مطبوعات وتغليف',
           branding: 'هويات بصرية'
         };
-        btnViewAll.href = cat === 'all' ? 'portfolio.html' : `portfolio.html?cat=${cat}`;
+        btnViewAll.href = cat === 'all' ? 'portfolio' : `portfolio?cat=${cat}`;
         btnViewAll.innerHTML = `
           <i class="fa-solid fa-layer-group"></i> تصفح كافة ${catTitles[cat] || 'التصاميم'} في صفحة مستقلة
           <i class="fa-solid fa-arrow-up-right-from-square" style="margin-right:0.5rem; font-size:0.9rem;"></i>

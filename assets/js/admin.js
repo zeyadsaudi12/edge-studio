@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const adminUser = JSON.parse(localStorage.getItem('edge_admin_user') || sessionStorage.getItem('edge_admin_user') || '{}');
 
   if (!adminToken) {
-    window.location.replace('login.html');
+    window.location.replace('login');
     return;
   }
 
@@ -28,7 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
       localStorage.removeItem('edge_admin_user');
       sessionStorage.removeItem('edge_admin_token');
       sessionStorage.removeItem('edge_admin_user');
-      window.location.replace('login.html');
+      window.location.replace('login');
     }
   }
 
@@ -402,7 +402,7 @@ document.addEventListener('DOMContentLoaded', () => {
         headers: { 'Authorization': 'Bearer ' + adminToken }
       });
       if (res.status === 401 || res.status === 403) {
-        window.location.replace('login.html');
+        window.location.replace('login');
         return;
       }
       const data = await res.json();

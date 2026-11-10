@@ -17,7 +17,7 @@
     (function checkAdminAuth() {
       const token = localStorage.getItem('edge_admin_token') || sessionStorage.getItem('edge_admin_token');
       if (!token) {
-        window.location.replace('login.html');
+        window.location.replace('login');
       }
     })();
   </script>
@@ -29,7 +29,7 @@
     <!-- 1. القائمة الجانبية (Sidebar) -->
     <aside class="admin-sidebar" id="admin-sidebar">
       <div class="sidebar-header">
-        <a href="index.html" class="sidebar-brand">
+        <a href="/" class="sidebar-brand">
           <img src="assets/img/logo-white.png" alt="EDGE Studio Logo">
         </a>
         <span class="sidebar-badge">لوحة الإدارة</span>
@@ -75,7 +75,7 @@
         </a>
 
         <div class="nav-category-title">الموقع والجمهور</div>
-        <a href="index.html" target="_blank" class="sidebar-link" style="color:var(--edge-cyan-glow);">
+        <a href="/" target="_blank" class="sidebar-link" style="color:var(--edge-cyan-glow);">
           <i class="fa-solid fa-arrow-up-right-from-square"></i>
           <span>معاينة الموقع كعميل</span>
         </a>
@@ -114,7 +114,7 @@
           <button class="btn btn-outline btn-sm" id="btn-export-orders-csv" title="تحميل ملف إكسل بجميع الطلبات">
             <i class="fa-solid fa-file-csv"></i> تصدير الطلبات (CSV)
           </button>
-          <a href="index.html" class="btn btn-primary btn-sm">
+          <a href="/" class="btn btn-primary btn-sm">
             <i class="fa-solid fa-globe"></i> الموقع الرئيسي
           </a>
           <button class="btn btn-danger btn-sm" id="btn-topbar-logout" title="تسجيل الخروج">

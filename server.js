@@ -27,15 +27,25 @@ app.use(cors());
 app.use(express.json({ limit: '20mb' }));
 app.use(express.urlencoded({ extended: true, limit: '20mb' }));
 
+// تحويل وحجب صيغة .html تلقائياً للحصول على روابط نظيفة وجميلة (Clean URLs)
+app.use((req, res, next) => {
+  if (req.path === '/index.html') {
+    const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+    return res.redirect(301, '/' + query);
+  }
+  if (req.path.endsWith('.html')) {
+    const cleanPath = req.path.slice(0, -5);
+    const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+    return res.redirect(301, cleanPath + query);
+  }
+  next();
+});
+
 // مسار خدمة الملفات الثابتة (Frontend Static Files)
 app.use(express.static(path.join(__dirname, '.')));
 
-// توجيه المسار الرئيسي والصفحات الثابتة بشكل صريح للعمل السليم على Vercel Serverless
+// توجيه المسارات النظيفة (بدون .html)
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
-});
-
-app.get('/index.html', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
@@ -43,23 +53,11 @@ app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, 'admin.html'));
 });
 
-app.get('/admin.html', (req, res) => {
-  res.sendFile(path.join(__dirname, 'admin.html'));
-});
-
 app.get('/login', (req, res) => {
   res.sendFile(path.join(__dirname, 'login.html'));
 });
 
-app.get('/login.html', (req, res) => {
-  res.sendFile(path.join(__dirname, 'login.html'));
-});
-
 app.get('/portfolio', (req, res) => {
-  res.sendFile(path.join(__dirname, 'portfolio.html'));
-});
-
-app.get('/portfolio.html', (req, res) => {
   res.sendFile(path.join(__dirname, 'portfolio.html'));
 });
 
@@ -674,8 +672,8 @@ if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
     console.log(`\n======================================================`);
     console.log(`🚀 خادم EDGE Creative Studio يعمل بنجاح!`);
     console.log(`🌐 الموقع الرئيسي: http://localhost:${PORT}`);
-    console.log(`🔒 لوحة تحكم الأدمن: http://localhost:${PORT}/admin.html`);
-    console.log(`🔑 صفحة تسجيل دخول الأدمن: http://localhost:${PORT}/login.html`);
+    console.log(`🔒 لوحة تحكم الأدمن: http://localhost:${PORT}/admin`);
+    console.log(`🔑 صفحة تسجيل دخول الأدمن: http://localhost:${PORT}/login`);
     console.log(`======================================================\n`);
   });
 } else {

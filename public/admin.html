@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>لوحة تحكم الإدارة | EDGE Studio Dashboard</title>
+  <link rel="icon" type="image/png" href="assets/img/logo-blue.png">
+  
+  <!-- FontAwesome Icons CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+  <!-- Custom Admin Stylesheet -->
+  <link rel="stylesheet" href="assets/css/admin.css">
+
+  <!-- حماية فورية للوحة الإدارة: التحقق من وجود جلسة دخول مصرح بها -->
+  <script>
+    (function checkAdminAuth() {
+      const token = localStorage.getItem('edge_admin_token') || sessionStorage.getItem('edge_admin_token');
+      if (!token) {
+        window.location.replace('login.html');
+      }
+    })();
+  </script>
+</head>
+<body>
+
+  <div class="admin-layout">
+    
+    <!-- 1. القائمة الجانبية (Sidebar) -->
+    <aside class="admin-sidebar" id="admin-sidebar">
+      <div class="sidebar-header">
+        <a href="index.html" class="sidebar-brand">
+          <img src="assets/img/logo-white.png" alt="EDGE Studio Logo">
+        </a>
+        <span class="sidebar-badge">لوحة الإدارة</span>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-category-title">الرئيسية والتحليلات</div>
+        <a href="#" class="sidebar-link active" data-view="view-overview" data-title="نظرة عامة وإحصائيات الاستوديو">
+          <i class="fa-solid fa-chart-pie"></i>
+          <span>نظرة عامة وإحصائيات</span>
+        </a>
+
+        <div class="nav-category-title">الطلبات والمبيعات</div>
+        <a href="#" class="sidebar-link" data-view="view-orders" data-title="إدارة الطلبات وحالات الدفع">
+          <i class="fa-solid fa-cart-flatbed-suitcase"></i>
+          <span>جميع الطلبات</span>
+          <span class="badge-count" id="sidebar-orders-badge">0</span>
+        </a>
+
+        <div class="nav-category-title">المحتوى والأعمال</div>
+        <a href="#" class="sidebar-link" data-view="view-projects" data-title="إدارة ورفع مشاريع المعرض">
+          <i class="fa-solid fa-images"></i>
+          <span>معرض المشاريع</span>
+        </a>
+
+        <div class="nav-category-title">الباقات والأسعار</div>
+        <a href="#" class="sidebar-link" data-view="view-packages" data-pkg-filter="all" data-title="إدارة باقات وأسعار الخدمات">
+          <i class="fa-solid fa-layer-group"></i>
+          <span>جميع الباقات</span>
+          <span class="badge-count" id="sidebar-packages-badge">0</span>
+        </a>
+        <a href="#" class="sidebar-link sub-link" data-view="view-packages" data-pkg-filter="social" data-title="باقات السوشيال ميديا">
+          <i class="fa-solid fa-share-nodes"></i>
+          <span>سوشيال ميديا</span>
+        </a>
+        <a href="#" class="sidebar-link sub-link" data-view="view-packages" data-pkg-filter="print" data-title="باقات المطبوعات والتغليف">
+          <i class="fa-solid fa-print"></i>
+          <span>مطبوعات وتغليف</span>
+        </a>
+        <a href="#" class="sidebar-link sub-link" data-view="view-packages" data-pkg-filter="branding" data-title="باقات الهوية البصرية">
+          <i class="fa-solid fa-wand-magic-sparkles"></i>
+          <span>هوية بصرية</span>
+        </a>
+
+        <div class="nav-category-title">الموقع والجمهور</div>
+        <a href="index.html" target="_blank" class="sidebar-link" style="color:var(--edge-cyan-glow);">
+          <i class="fa-solid fa-arrow-up-right-from-square"></i>
+          <span>معاينة الموقع كعميل</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div style="display:flex; align-items:center; gap:0.6rem;">
+          <div style="width:10px; height:10px; border-radius:50%; background:#10B981; box-shadow:0 0 10px #10B981;"></div>
+          <span style="font-size:0.85rem; color:var(--text-muted);" id="sidebar-admin-name">الأدمن متصل</span>
+        </div>
+        <button id="btn-sidebar-logout" class="btn btn-danger btn-sm" style="padding:0.25rem 0.6rem; font-size:0.75rem;" title="تسجيل الخروج">
+          <i class="fa-solid fa-power-off"></i>
+        </button>
+      </div>
+    </aside>
+
+    <!-- 2. المحتوى الرئيسي (Main Content) -->
+    <main class="admin-main">
+      
+      <!-- الشريط العلوي (Topbar) -->
+      <header class="admin-topbar">
+        <div class="topbar-left">
+          <h1 class="topbar-title" id="current-view-title">نظرة عامة وإحصائيات الاستوديو</h1>
+        </div>
+
+        <div class="topbar-right">
+          <!-- شارة حالة اتصال MongoDB -->
+          <span id="db-status-badge" class="badge-status pending" style="font-size:0.78rem;">
+            <i class="fa-solid fa-database"></i> فحص MongoDB...
+          </span>
+
+          <button class="btn btn-outline btn-sm" id="btn-open-password-modal" title="تغيير كلمة مرور المشرف">
+            <i class="fa-solid fa-key"></i> الأمان
+          </button>
+
+          <button class="btn btn-outline btn-sm" id="btn-export-orders-csv" title="تحميل ملف إكسل بجميع الطلبات">
+            <i class="fa-solid fa-file-csv"></i> تصدير الطلبات (CSV)
+          </button>
+          <a href="index.html" class="btn btn-primary btn-sm">
+            <i class="fa-solid fa-globe"></i> الموقع الرئيسي
+          </a>
+          <button class="btn btn-danger btn-sm" id="btn-topbar-logout" title="تسجيل الخروج">
+            <i class="fa-solid fa-right-from-bracket"></i> خروج
+          </button>
+        </div>
+      </header>
+
+      <!-- جسم لوحة التحكم التفاعلي (Admin Body) -->
+      <div class="admin-body">
+
+        <!-- ==========================================
+             القسم 1: نظرة عامة والإحصائيات (Overview)
+             ========================================== -->
+        <section class="view-section active" id="view-overview">
+          
+          <!-- بطاقات الإحصائيات الست الرئيسية -->
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-info">
+                <span class="stat-title">إجمالي الطلبات</span>
+                <span class="stat-value" id="stat-total-orders">0</span>
+              </div>
+              <div class="stat-icon blue">
+                <i class="fa-solid fa-folder-open"></i>
+              </div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-info">
+                <span class="stat-title">قيد المراجعة</span>
+                <span class="stat-value" id="stat-pending-orders" style="color:#FBBF24;">0</span>
+              </div>
+              <div class="stat-icon yellow">
+                <i class="fa-solid fa-hourglass-half"></i>
+              </div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-info">
+                <span class="stat-title">قيد التنفيذ والعمل</span>
+                <span class="stat-value" id="stat-progress-orders" style="color:#60A5FA;">0</span>
+              </div>
+              <div class="stat-icon blue">
+                <i class="fa-solid fa-wand-magic-sparkles"></i>
+              </div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-info">
+                <span class="stat-title">طلبات مكتملة ومسلّمة</span>
+                <span class="stat-value" id="stat-completed-orders" style="color:#34D399;">0</span>
+              </div>
+              <div class="stat-icon green">
+                <i class="fa-solid fa-circle-check"></i>
+              </div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-info">
+                <span class="stat-title">طلبات ملغية</span>
+                <span class="stat-value" id="stat-cancelled-orders" style="color:#F87171;">0</span>
+              </div>
+              <div class="stat-icon red">
+                <i class="fa-solid fa-ban"></i>
+              </div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-info">
+                <span class="stat-title">إجمالي الإيرادات والمحصل</span>
+                <span class="stat-value" id="stat-total-revenue" style="color:var(--edge-cyan-glow); font-size:1.6rem;">0 ج.م</span>
+              </div>
+              <div class="stat-icon green">
+                <i class="fa-solid fa-hand-holding-dollar"></i>
+              </div>
+            </div>
+          </div>
+
+          <!-- بطاقات توزيع الطلبات حسب الأقسام -->
+          <div class="form-grid-2" style="margin-bottom:2rem;">
+            <div style="background:var(--bg-card); border:1px solid var(--border-subtle); border-radius:14px; padding:1.5rem;">
+              <h3 style="font-size:1.15rem; margin-bottom:1rem; display:flex; align-items:center; gap:0.5rem;">
+                <i class="fa-solid fa-chart-pie" style="color:var(--edge-cyan-glow);"></i> نسبة الطلبات حسب أقسام التصميم
+              </h3>
+              <div style="display:flex; flex-direction:column; gap:1rem;">
+                <div>
+                  <div style="display:flex; justify-content:space-between; margin-bottom:0.3rem; font-size:0.9rem;">
+                    <span>📱 سوشيال ميديا</span>
+                    <strong id="ratio-social">0%</strong>
+                  </div>
+                  <div style="height:8px; background:rgba(255,255,255,0.1); border-radius:10px; overflow:hidden;">
+                    <div style="height:100%; width:45%; background:var(--edge-blue-vibrant);"></div>
+                  </div>
+                </div>
+
+                <div>
+                  <div style="display:flex; justify-content:space-between; margin-bottom:0.3rem; font-size:0.9rem;">
+                    <span>🖨️ مطبوعات وتغليف</span>
+                    <strong id="ratio-print">0%</strong>
+                  </div>
+                  <div style="height:8px; background:rgba(255,255,255,0.1); border-radius:10px; overflow:hidden;">
+                    <div style="height:100%; width:30%; background:var(--edge-cyan-glow);"></div>
+                  </div>
+                </div>
+
+                <div>
+                  <div style="display:flex; justify-content:space-between; margin-bottom:0.3rem; font-size:0.9rem;">
+                    <span>💎 هوية بصرية كاملة</span>
+                    <strong id="ratio-brand">0%</strong>
+                  </div>
+                  <div style="height:8px; background:rgba(255,255,255,0.1); border-radius:10px; overflow:hidden;">
+                    <div style="height:100%; width:25%; background:#A855F7;"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div style="background:var(--bg-card); border:1px solid var(--border-subtle); border-radius:14px; padding:1.5rem; display:flex; flex-direction:column; justify-content:space-between;">
+              <div>
+                <h3 style="font-size:1.15rem; margin-bottom:0.6rem; color:#fff;">
+                  <i class="fa-solid fa-bullhorn" style="color:var(--edge-cyan-glow);"></i> نصائح وإجراءات سريعة
+                </h3>
+                <p style="color:var(--text-muted); font-size:0.9rem; line-height:1.7;">
+                  يمكنك النقر مباشرة على أيقونة الواتساب في جدول الطلبات لبدء المحادثة الفورية مع العميل وتأكيد الدفعة الأولى، أو تحديث حالة الدفع لتحديث إجمالي الإيرادات المحسوبة تلقائياً.
+                </p>
+              </div>
+              <div style="display:flex; gap:0.8rem; margin-top:1rem;">
+                <button class="btn btn-primary btn-sm" onclick="document.querySelector('[data-view=view-orders]').click()">
+                  <i class="fa-solid fa-list-check"></i> معاينة الطلبات الآن
+                </button>
+                <button class="btn btn-outline btn-sm" onclick="document.querySelector('[data-view=view-projects]').click()">
+                  <i class="fa-solid fa-plus"></i> إضافة مشروع جديد
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ==========================================
+             القسم 2: جدول جميع الطلبات والتصفية (Orders View)
+             ========================================== -->
+        <section class="view-section" id="view-orders">
+          
+          <!-- شريط أدوات الفلترة والبحث السريع -->
+          <div class="table-toolbar">
+            <div class="search-input-wrap">
+              <i class="fa-solid fa-magnifying-glass"></i>
+              <input type="text" id="orders-search-input" class="search-input" placeholder="ابحث برقم الطلب، اسم العميل، الهاتف، أو اسم البراند...">
+            </div>
+
+            <div class="filter-actions">
+              <select id="filter-status-select" class="select-filter">
+                <option value="all">جميع حالات الطلب (الكل)</option>
+                <option value="pending">🟡 قيد المراجعة</option>
+                <option value="in_progress">🔵 قيد التنفيذ</option>
+                <option value="completed">🟢 مكتمل ومسلّم</option>
+                <option value="cancelled">🔴 ملغي</option>
+              </select>
+
+              <select id="filter-payment-select" class="select-filter">
+                <option value="all">جميع حالات الدفع (الكل)</option>
+                <option value="unpaid">❌ غير مدفوع / معلق</option>
+                <option value="deposit_paid">⏳ تم دفع العربون 50%</option>
+                <option value="fully_paid">✅ مدفوع بالكامل</option>
+              </select>
+
+              <button class="btn btn-primary btn-sm" id="btn-open-manual-order">
+                <i class="fa-solid fa-plus"></i> إضافة طلب يدوي
+              </button>
+
+              <button class="btn btn-danger btn-sm" id="btn-clear-all-orders" title="تصفير وإفراغ كافة الطلبات">
+                <i class="fa-solid fa-trash-can"></i> تصفير السجل
+              </button>
+            </div>
+          </div>
+
+          <!-- جدول البيانات -->
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>رقم الطلب</th>
+                  <th>العميل والبراند</th>
+                  <th>الخدمة المطلوبة</th>
+                  <th>التكلفة</th>
+                  <th>حالة الطلب</th>
+                  <th>حالة الدفع</th>
+                  <th>إجراءات سريعة</th>
+                </tr>
+              </thead>
+              <tbody id="orders-table-body">
+                <!-- تتولد ديناميكياً من admin.js -->
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ==========================================
+             القسم 3: رفع وإدارة المشاريع (Projects View)
+             ========================================== -->
+        <section class="view-section" id="view-projects">
+          
+          <!-- بطاقة إضافة مشروع جديد -->
+          <div style="background:var(--bg-card); border:1px solid var(--border-active); border-radius:16px; padding:2rem; margin-bottom:2.5rem; box-shadow:0 8px 30px rgba(0,0,0,0.5);">
+            <div style="display:flex; align-items:center; gap:0.6rem; margin-bottom:1.5rem;">
+              <i class="fa-solid fa-cloud-arrow-up fa-2x" style="color:var(--edge-cyan-glow);"></i>
+              <div>
+                <h3 style="font-size:1.35rem; margin:0;">إضافة ونشر مشروع جديد في معرض الأعمال</h3>
+                <p style="color:var(--text-muted); font-size:0.88rem; margin:0;">املأ بيانات المشروع ليعرض فوراً للزوار في الصفحة الرئيسية</p>
+              </div>
+            </div>
+
+            <form id="add-project-form">
+              <div class="form-grid-2">
+                <div class="form-group">
+                  <label class="form-label">عنوان المشروع *</label>
+                  <input type="text" id="proj-title" class="form-input" placeholder="مثال: هوية براند كافيه لا فيتا" required>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">تصنيف وقسم المشروع *</label>
+                  <select id="proj-category" class="form-select" required>
+                    <option value="social">سوشيال ميديا (Social Media)</option>
+                    <option value="print">مطبوعات وتغليف (Print & Packaging)</option>
+                    <option value="branding">هوية بصرية (Visual Identity)</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">اسم العميل أو الشركة</label>
+                  <input type="text" id="proj-client" class="form-input" placeholder="مثال: شركة لا فيتا للصناعات الغذائية">
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">سنة التنفيذ</label>
+                  <input type="text" id="proj-year" class="form-input" value="2024">
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">رابط صورة (أو ارفع صوراً متعددة بالأسفل):</label>
+                  <input type="url" id="proj-img-url" class="form-input" placeholder="https://example.com/image.jpg">
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">رفع صورة أو صور متعددة للمشروع:</label>
+                  <label for="proj-img-file" class="btn btn-outline" style="width:100%; cursor:pointer; text-overflow:ellipsis; overflow:hidden; white-space:nowrap;">
+                    <i class="fa-solid fa-cloud-arrow-up"></i> <span id="proj-img-preview-label">اختر صورة أو صوراً متعددة</span>
+                  </label>
+                  <input type="file" id="proj-img-file" accept="image/*" multiple style="display:none;">
+                </div>
+
+                <div class="form-group full">
+                  <label class="form-label">الكلمات المفتاحية والتاجات (مفصولة بفواصل):</label>
+                  <input type="text" id="proj-tags" class="form-input" placeholder="مثال: تصميم شعار, هوية كافيهات, منيو فاخر, علب تغليف">
+                </div>
+              </div>
+
+              <div style="display:flex; justify-content:flex-end; margin-top:1rem;">
+                <button type="submit" class="btn btn-primary" id="btn-submit-projects">
+                  <i class="fa-solid fa-paper-plane"></i> نشر في المعرض
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <!-- شريط أقسام وتصنيفات المشاريع -->
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem;">
+            <h3 style="font-size:1.3rem; margin:0; color:var(--text-main);">
+              <i class="fa-solid fa-layer-group" style="color:var(--edge-cyan-glow);"></i> مشاريع المعرض مقسمة حسب التخصص
+            </h3>
+
+            <!-- أزرار الأقسام: سوشيال ميديا / مطبوعات / هوية بصرية -->
+            <div style="display:flex; gap:0.6rem; flex-wrap:wrap;">
+              <button class="btn btn-primary btn-sm btn-proj-filter active" data-proj-cat="all">
+                جميع المشاريع (<span id="count-all-proj">0</span>)
+              </button>
+              <button class="btn btn-outline btn-sm btn-proj-filter" data-proj-cat="social">
+                <i class="fa-solid fa-share-nodes"></i> سوشيال ميديا (<span id="count-social-proj">0</span>)
+              </button>
+              <button class="btn btn-outline btn-sm btn-proj-filter" data-proj-cat="print">
+                <i class="fa-solid fa-print"></i> مطبوعات وتغليف (<span id="count-print-proj">0</span>)
+              </button>
+              <button class="btn btn-outline btn-sm btn-proj-filter" data-proj-cat="branding">
+                <i class="fa-solid fa-wand-magic-sparkles"></i> هوية بصرية (<span id="count-branding-proj">0</span>)
+              </button>
+            </div>
+          </div>
+
+          <div class="admin-projects-grid" id="admin-projects-grid">
+            <!-- تتولد ديناميكياً من admin.js -->
+          </div>
+        </section>
+
+        <!-- ==========================================
+             القسم 4: إدارة باقات الخدمات (Packages View)
+             ========================================== -->
+        <section class="view-section" id="view-packages">
+          
+          <!-- رأس القسم وزر إضافة باقة -->
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1.8rem; flex-wrap:wrap; gap:1rem;">
+            <div>
+              <h3 style="font-size:1.4rem; margin:0;">
+                <i class="fa-solid fa-layer-group" style="color:var(--edge-cyan-glow);"></i> إدارة باقات وأسعار الخدمات
+              </h3>
+              <p style="color:var(--text-muted); font-size:0.9rem; margin:0;">
+                أضف وعدّل واحذف باقاتك بالكامل، وستنعكس فوراً في صفحة الموقع الرئيسية ونموذج طلب الخدمات للعملاء.
+              </p>
+            </div>
+            <div style="display:flex; gap:0.8rem;">
+              <button class="btn btn-primary" id="btn-open-add-package-modal">
+                <i class="fa-solid fa-plus"></i> إضافة باقة جديدة
+              </button>
+            </div>
+          </div>
+
+          <!-- شريط تصفية الباقات حسب القسم -->
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem;">
+            <div style="display:flex; gap:0.6rem; flex-wrap:wrap;">
+              <button class="btn btn-primary btn-sm btn-pkg-filter active" data-filter="all">
+                جميع الباقات (<span id="count-all-pkgs">0</span>)
+              </button>
+              <button class="btn btn-outline btn-sm btn-pkg-filter" data-filter="social">
+                <i class="fa-solid fa-share-nodes"></i> سوشيال ميديا (<span id="count-social-pkgs">0</span>)
+              </button>
+              <button class="btn btn-outline btn-sm btn-pkg-filter" data-filter="print">
+                <i class="fa-solid fa-print"></i> مطبوعات وتغليف (<span id="count-print-pkgs">0</span>)
+              </button>
+              <button class="btn btn-outline btn-sm btn-pkg-filter" data-filter="branding">
+                <i class="fa-solid fa-wand-magic-sparkles"></i> هوية بصرية (<span id="count-branding-pkgs">0</span>)
+              </button>
+            </div>
+          </div>
+
+          <!-- شبكة الباقات المضافة -->
+          <div class="packages-admin-grid" id="packages-admin-grid">
+            <!-- تتولد ديناميكياً من admin.js -->
+          </div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- 3. نافذة تفاصيل الطلب المنبثقة (Order Details Modal) -->
+  <div class="admin-modal-overlay" id="order-detail-modal">
+    <div class="admin-modal-box">
+      <div class="admin-modal-header">
+        <h3 style="font-size:1.2rem; margin:0; display:flex; align-items:center; gap:0.5rem;">
+          <i class="fa-solid fa-file-invoice" style="color:var(--edge-cyan-glow);"></i> تفاصيل الطلب الكاملة
+        </h3>
+        <button class="btn btn-outline btn-sm" id="order-modal-close-btn" style="border-radius:50%; width:36px; height:36px; padding:0;">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="admin-modal-body" id="order-modal-body">
+        <!-- تتولد ديناميكياً -->
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. نافذة إضافة طلب يدوي جديد (Manual Order Modal) -->
+  <div class="admin-modal-overlay" id="manual-order-modal">
+    <div class="admin-modal-box">
+      <div class="admin-modal-header">
+        <h3 style="font-size:1.2rem; margin:0; display:flex; align-items:center; gap:0.5rem;">
+          <i class="fa-solid fa-plus-circle" style="color:var(--edge-cyan-glow);"></i> تسجيل طلب جديد يدوياً
+        </h3>
+        <button class="btn btn-outline btn-sm" id="manual-modal-close-btn" style="border-radius:50%; width:36px; height:36px; padding:0;">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="admin-modal-body">
+        <form id="manual-order-form">
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-label">اسم العميل *</label>
+              <input type="text" id="m-client-name" class="form-input" placeholder="اسم العميل الكامل" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">رقم الهاتف / الواتساب *</label>
+              <input type="tel" id="m-client-phone" class="form-input" placeholder="010xxxxxxxx" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">اسم البراند / النشاط</label>
+              <input type="text" id="m-brand-name" class="form-input" placeholder="اسم الشركة أو المشروع">
+            </div>
+            <div class="form-group">
+              <label class="form-label">قسم الخدمة *</label>
+              <select id="m-category" class="form-select" required>
+                <option value="social">سوشيال ميديا</option>
+                <option value="print">مطبوعات وتغليف</option>
+                <option value="branding">هوية بصرية</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">اسم الخدمة أو الباقة *</label>
+              <input type="text" id="m-service-name" class="form-input" placeholder="مثال: باقة الانطلاق، كارت شخصي..." required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">التكلفة الإجمالية (ج.م) *</label>
+              <input type="number" id="m-price" class="form-input" placeholder="مثال: 500" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">حالة الطلب الأولية</label>
+              <select id="m-status" class="form-select">
+                <option value="pending">🟡 قيد المراجعة</option>
+                <option value="in_progress" selected>🔵 قيد التنفيذ</option>
+                <option value="completed">🟢 مكتمل ومسلّم</option>
+                <option value="cancelled">🔴 ملغي</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">حالة الدفع</label>
+              <select id="m-payment" class="form-select">
+                <option value="unpaid">❌ غير مدفوع</option>
+                <option value="deposit_paid" selected>⏳ تم دفع العربون 50%</option>
+                <option value="fully_paid">✅ مدفوع بالكامل</option>
+              </select>
+            </div>
+            <div class="form-group full">
+              <label class="form-label">ملاحظات ومواصفات الطلب</label>
+              <textarea id="m-notes" class="form-textarea" placeholder="اكتب تفاصيل الاتفاق والمطلوب تنفيذه..."></textarea>
+            </div>
+          </div>
+          <div style="display:flex; justify-content:flex-end; gap:0.8rem; margin-top:1.2rem;">
+            <button type="button" class="btn btn-outline" id="m-cancel-btn">إلغاء</button>
+            <button type="submit" class="btn btn-primary"><i class="fa-solid fa-check"></i> حفظ وإضافة الطلب</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. نافذة تعديل بيانات المشروع (Edit Project Modal) -->
+  <div class="admin-modal-overlay" id="edit-project-modal">
+    <div class="admin-modal-box">
+      <div class="admin-modal-header">
+        <h3 style="font-size:1.2rem; margin:0; display:flex; align-items:center; gap:0.5rem;">
+          <i class="fa-solid fa-pen-to-square" style="color:var(--edge-cyan-glow);"></i> تعديل بيانات المشروع
+        </h3>
+        <button class="btn btn-outline btn-sm" id="edit-proj-modal-close-btn" style="border-radius:50%; width:36px; height:36px; padding:0;">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="admin-modal-body">
+        <form id="edit-project-form">
+          <input type="hidden" id="edit-proj-id">
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-label">عنوان المشروع *</label>
+              <input type="text" id="edit-proj-title" class="form-input" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">القسم / التصنيف *</label>
+              <select id="edit-proj-category" class="form-select" required>
+                <option value="social">سوشيال ميديا (Social Media)</option>
+                <option value="print">مطبوعات وتغليف (Print & Packaging)</option>
+                <option value="branding">هوية بصرية (Visual Identity)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">اسم العميل</label>
+              <input type="text" id="edit-proj-client" class="form-input">
+            </div>
+            <div class="form-group">
+              <label class="form-label">سنة التنفيذ</label>
+              <input type="text" id="edit-proj-year" class="form-input">
+            </div>
+            <div class="form-group">
+              <label class="form-label">رابط صورة المشروع</label>
+              <input type="text" id="edit-proj-img-url" class="form-input">
+            </div>
+            <div class="form-group">
+              <label class="form-label">أو رفع صورة بديلة من جهازك:</label>
+              <label for="edit-proj-img-file" class="btn btn-outline" style="width:100%; cursor:pointer;">
+                <i class="fa-solid fa-upload"></i> <span id="edit-proj-file-label">اختيار صورة جديدة</span>
+              </label>
+              <input type="file" id="edit-proj-img-file" accept="image/*" style="display:none;">
+            </div>
+            <div class="form-group full">
+              <label class="form-label">التاجات والكلمات المفتاحية (مفصولة بفواصل):</label>
+              <input type="text" id="edit-proj-tags" class="form-input">
+            </div>
+          </div>
+          <div style="display:flex; justify-content:flex-end; gap:0.8rem; margin-top:1.2rem;">
+            <button type="button" class="btn btn-outline" id="edit-proj-cancel-btn">إلغاء</button>
+            <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> حفظ التعديلات</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. نافذة تغيير كلمة المرور للمشرف (Change Password Modal) -->
+  <div class="admin-modal-overlay" id="password-modal">
+    <div class="admin-modal-box" style="max-width:480px;">
+      <div class="admin-modal-header">
+        <h3 style="font-size:1.2rem; margin:0; display:flex; align-items:center; gap:0.5rem;">
+          <i class="fa-solid fa-key" style="color:var(--edge-cyan-glow);"></i> تغيير كلمة مرور الإدارة
+        </h3>
+        <button class="btn btn-outline btn-sm" id="password-modal-close-btn" style="border-radius:50%; width:36px; height:36px; padding:0;">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="admin-modal-body">
+        <form id="change-password-form">
+          <div class="form-group">
+            <label class="form-label">كلمة المرور الحالية *</label>
+            <input type="password" id="cur-pass" class="form-input" placeholder="أدخل كلمة المرور الحالية" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">كلمة المرور الجديدة *</label>
+            <input type="password" id="new-pass" class="form-input" placeholder="6 أحرف على الأقل" required minlength="6">
+          </div>
+          <div class="form-group">
+            <label class="form-label">تأكيد كلمة المرور الجديدة *</label>
+            <input type="password" id="confirm-pass" class="form-input" placeholder="أعد كتابة كلمة المرور الجديدة" required minlength="6">
+          </div>
+          <div style="display:flex; justify-content:flex-end; gap:0.8rem; margin-top:1.5rem;">
+            <button type="button" class="btn btn-outline" id="pass-cancel-btn">إلغاء</button>
+            <button type="submit" class="btn btn-primary"><i class="fa-solid fa-check"></i> حفظ كلمة المرور</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- 7. نافذة إضافة وتعديل الباقة (Package Add/Edit Modal) -->
+  <div class="admin-modal-overlay" id="package-modal">
+    <div class="admin-modal-box">
+      <div class="admin-modal-header">
+        <h3 style="font-size:1.2rem; margin:0; display:flex; align-items:center; gap:0.5rem;" id="package-modal-title">
+          <i class="fa-solid fa-layer-group" style="color:var(--edge-cyan-glow);"></i> إضافة باقة جديدة
+        </h3>
+        <button class="btn btn-outline btn-sm" id="package-modal-close-btn" style="border-radius:50%; width:36px; height:36px; padding:0;">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="admin-modal-body">
+        <form id="package-form">
+          <input type="hidden" id="pkg-id">
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-label">اسم الباقة / الخدمة *</label>
+              <input type="text" id="pkg-name" class="form-input" placeholder="مثال: باقة الانطلاق، كارت شخصي فاخر، هوية متكاملة..." required>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">القسم / التصنيف *</label>
+              <select id="pkg-category" class="form-select" required>
+                <option value="social">سوشيال ميديا (Social Media)</option>
+                <option value="print">مطبوعات وتغليف (Print & Packaging)</option>
+                <option value="branding">هوية بصرية (Visual Identity)</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">السعر (أرقام فقط) *</label>
+              <input type="number" id="pkg-price" class="form-input" placeholder="مثال: 500" required min="0">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">العملة</label>
+              <input type="text" id="pkg-currency" class="form-input" value="ج.م">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">دورة التكلفة / الفترة</label>
+              <input type="text" id="pkg-period" class="form-input" placeholder="مثال: شهرياً، للتصميم، للمشروع...">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">شارة ترويجية مخصصة (اختياري)</label>
+              <input type="text" id="pkg-badge" class="form-input" placeholder="مثال: الأكثر طلباً ⭐، عرض حصري، موصى به">
+            </div>
+
+            <div class="form-group full" style="display:flex; align-items:center; gap:0.6rem;">
+              <input type="checkbox" id="pkg-popular" style="width:18px; height:18px; accent-color:var(--edge-blue-vibrant); cursor:pointer;">
+              <label for="pkg-popular" class="form-label" style="margin:0; cursor:pointer;">تمييز هذه الباقة كباقة مميزة / الأكثر طلباً (Popular Glow)</label>
+            </div>
+
+            <div class="form-group full">
+              <label class="form-label">وصف الباقة *</label>
+              <textarea id="pkg-desc" class="form-textarea" placeholder="اشرح ما تتضمنه الباقة ولمن تصلح باختصار..." required></textarea>
+            </div>
+
+            <div class="form-group full">
+              <label class="form-label">مميزات ومحتويات الباقة (كل ميزة في سطر منفصل) *</label>
+              <textarea id="pkg-features" class="form-textarea" style="min-height:100px;" placeholder="12 تصميماً عالي الجودة&#10;كتابة المحتوى الإعلاني لكل بوست&#10;تعديلات مجانية حتى الرضا&#10;تسليم الملفات المصدرية مفتوحة"></textarea>
+            </div>
+          </div>
+
+          <div style="display:flex; justify-content:flex-end; gap:0.8rem; margin-top:1.2rem;">
+            <button type="button" class="btn btn-outline" id="package-cancel-btn">إلغاء</button>
+            <button type="submit" class="btn btn-primary" id="package-submit-btn">
+              <i class="fa-solid fa-check"></i> حفظ الباقة
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="assets/data/portfolio.js"></script>
+  <script src="assets/data/pricing.js"></script>
+  <script src="assets/js/admin.js"></script>
+</body>
+</html>
+

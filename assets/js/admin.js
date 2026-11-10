@@ -192,8 +192,19 @@ document.addEventListener('DOMContentLoaded', () => {
   /* ==========================================================================
      3. حساب وتحديث الإحصائيات الشاملة (Statistics Calculation)
      ========================================================================== */
+  let liveAdminOrders = [];
+
+  function getEffectiveOrders() {
+    if (liveAdminOrders && liveAdminOrders.length > 0) return liveAdminOrders;
+    try {
+      return JSON.parse(localStorage.getItem('edge_orders') || '[]');
+    } catch (e) {
+      return [];
+    }
+  }
+
   function updateStatistics() {
-    const orders = JSON.parse(localStorage.getItem('edge_orders') || '[]');
+    const orders = getEffectiveOrders();
 
     const totalCount = orders.length;
     const pendingCount = orders.filter(o => o.status === 'pending').length;
@@ -247,7 +258,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function renderOrdersTable() {
     if (!ordersTableBody) return;
 
-    const orders = JSON.parse(localStorage.getItem('edge_orders') || '[]');
+    const orders = getEffectiveOrders();
     const query = (searchInput?.value || '').toLowerCase().trim();
     const statusFilter = filterStatusSelect?.value || 'all';
     const payFilter = filterPaymentSelect?.value || 'all';
@@ -408,8 +419,9 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       const data = await res.json();
       if (data.success && Array.isArray(data.orders)) {
-        const formatted = data.orders.map(o => ({
+        liveAdminOrders = data.orders.map(o => ({
           id: o.orderId || o.id,
+          orderId: o.orderId || o.id,
           createdAt: o.createdAt,
           dateFormatted: new Date(o.createdAt).toLocaleDateString('ar-EG', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
           service: o.service,
@@ -427,7 +439,17 @@ document.addEventListener('DOMContentLoaded', () => {
           paymentStatus: o.paymentStatus,
           adminNotes: o.adminNotes
         }));
-        localStorage.setItem('edge_orders', JSON.stringify(formatted));
+
+        try {
+          const lightOrders = liveAdminOrders.map(o => ({
+            ...o,
+            uploadedFiles: (o.uploadedFiles || []).map(f => typeof f === 'object' && f ? { name: f.name, size: f.size, type: f.type } : f)
+          }));
+          localStorage.setItem('edge_orders', JSON.stringify(lightOrders));
+        } catch (storageErr) {
+          console.warn('Quota exceeded in localStorage, relying on live memory cache.');
+        }
+
         renderOrdersTable();
         updateStatistics();
       }
@@ -687,8 +709,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const orderModalClose = document.getElementById('order-modal-close-btn');
 
   function openOrderDetailsModal(orderId) {
-    const orders = JSON.parse(localStorage.getItem('edge_orders') || '[]');
-    const order = orders.find(o => o.id === orderId);
+    let order = liveAdminOrders.find(o => (o.id === orderId || o.orderId === orderId));
+    if (!order) {
+      const localOrders = JSON.parse(localStorage.getItem('edge_orders') || '[]');
+      order = localOrders.find(o => (o.id === orderId || o.orderId === orderId));
+    }
     if (!order || !orderModal || !orderModalBody) return;
 
     let detailsListHtml = '';
@@ -704,12 +729,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     let filesStr = '';
-    if (order.uploadedFiles && order.uploadedFiles.length > 0) {
+    let rawFiles = order.uploadedFiles || [];
+    if (!Array.isArray(rawFiles)) rawFiles = [rawFiles];
+
+    if (rawFiles.length > 0) {
       filesStr = '<div style="display:flex; flex-direction:column; gap:0.6rem;">';
-      order.uploadedFiles.forEach(f => {
+      rawFiles.forEach(f => {
+        if (!f) return;
         const isObj = typeof f === 'object' && f !== null;
-        const name = isObj ? (f.name || 'ملف مرفق') : f;
-        const dataUrl = isObj ? f.data : null;
+        const name = isObj ? (f.name || 'ملف مرفق') : String(f);
+        const dataUrl = isObj && f.data ? f.data : null;
         const sizeStr = isObj && f.size ? `${(f.size / 1024).toFixed(1)} KB` : '';
         const isImage = dataUrl && (dataUrl.startsWith('data:image') || (f.type && f.type.startsWith('image/')) || /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(name));
 

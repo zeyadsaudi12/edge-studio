@@ -703,9 +703,56 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    const filesStr = order.uploadedFiles && order.uploadedFiles.length > 0
-      ? order.uploadedFiles.map(f => `<span class="badge-status in_progress" style="margin-left:5px;"><i class="fa-regular fa-file"></i> ${f}</span>`).join('')
-      : '<span style="color:var(--text-dim);">لا توجد ملفات مرفوعة</span>';
+    let filesStr = '';
+    if (order.uploadedFiles && order.uploadedFiles.length > 0) {
+      filesStr = '<div style="display:flex; flex-direction:column; gap:0.6rem;">';
+      order.uploadedFiles.forEach(f => {
+        const isObj = typeof f === 'object' && f !== null;
+        const name = isObj ? (f.name || 'ملف مرفق') : f;
+        const dataUrl = isObj ? f.data : null;
+        const sizeStr = isObj && f.size ? `${(f.size / 1024).toFixed(1)} KB` : '';
+        const isImage = dataUrl && (dataUrl.startsWith('data:image') || (f.type && f.type.startsWith('image/')) || /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(name));
+
+        if (dataUrl) {
+          filesStr += `
+            <div style="display:flex; align-items:center; justify-content:space-between; background:rgba(255,255,255,0.03); border:1px solid var(--border-subtle); border-radius:10px; padding:0.7rem 1rem; flex-wrap:wrap; gap:0.6rem;">
+              <div style="display:flex; align-items:center; gap:0.8rem;">
+                ${isImage 
+                  ? `<img src="${dataUrl}" style="width:48px; height:48px; object-fit:cover; border-radius:8px; border:1px solid rgba(255,255,255,0.15); cursor:pointer;" onclick="window.open('${dataUrl}', '_blank')" alt="${name}" title="اضغط للتكبير">` 
+                  : `<div style="width:48px; height:48px; border-radius:8px; background:rgba(34,211,238,0.1); display:flex; align-items:center; justify-content:center; color:var(--edge-cyan-glow);"><i class="fa-solid fa-file-arrow-down fa-xl"></i></div>`
+                }
+                <div>
+                  <div style="font-weight:600; color:#fff; font-size:0.92rem; word-break:break-all;">${name}</div>
+                  ${sizeStr ? `<span style="font-size:0.75rem; color:var(--text-dim);">${sizeStr}</span>` : ''}
+                </div>
+              </div>
+              <div style="display:flex; gap:0.5rem; align-items:center;">
+                <a href="${dataUrl}" download="${name}" class="btn btn-primary btn-sm" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.4rem 0.8rem; font-size:0.82rem;">
+                  <i class="fa-solid fa-download"></i> تحميل الملف
+                </a>
+                <a href="${dataUrl}" target="_blank" class="btn btn-outline btn-sm" style="display:inline-flex; align-items:center; gap:0.3rem; padding:0.4rem 0.7rem; font-size:0.82rem;">
+                  <i class="fa-solid fa-eye"></i> معاينة
+                </a>
+              </div>
+            </div>
+          `;
+        } else {
+          filesStr += `
+            <div style="display:flex; align-items:center; justify-content:space-between; background:rgba(255,255,255,0.02); border:1px dashed var(--border-subtle); border-radius:10px; padding:0.7rem 1rem; flex-wrap:wrap; gap:0.5rem;">
+              <span style="color:#fff; font-size:0.9rem; display:flex; align-items:center; gap:0.5rem;">
+                <i class="fa-regular fa-file-lines" style="color:var(--edge-cyan-glow);"></i> ${name}
+              </span>
+              <span style="font-size:0.78rem; color:#f59e0b; background:rgba(245,158,11,0.1); padding:0.25rem 0.6rem; border-radius:6px;">
+                <i class="fa-brands fa-whatsapp"></i> مسجل بالاسم فقط (يمكن طلبه عبر واتساب العميل)
+              </span>
+            </div>
+          `;
+        }
+      });
+      filesStr += '</div>';
+    } else {
+      filesStr = '<span style="color:var(--text-dim); font-size:0.9rem;"><i class="fa-solid fa-circle-info"></i> لم يقم العميل بإرفاق أي ملفات في هذا الطلب.</span>';
+    }
 
     orderModalBody.innerHTML = `
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem;">

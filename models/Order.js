@@ -50,7 +50,7 @@ const OrderSchema = new mongoose.Schema({
     accent: { type: String, default: '#22D3EE' }
   },
   uploadedFiles: {
-    type: [String],
+    type: [mongoose.Schema.Types.Mixed],
     default: []
   },
   details: {

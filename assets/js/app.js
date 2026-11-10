@@ -725,10 +725,31 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  function handleFiles(files) {
+  function readFileAsBase64(file) {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve(e.target.result);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function handleFiles(files) {
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      orderState.uploadedFiles.push(file.name);
+      // حد أقصى 8 ميجابايت للملف
+      if (file.size > 8 * 1024 * 1024) {
+        alert(`الملف "${file.name}" حجمه كبير جداً (أكبر من 8MB). يرجى تقليل حجمه أو إرساله عبر واتساب.`);
+        continue;
+      }
+
+      const dataUrl = await readFileAsBase64(file);
+      orderState.uploadedFiles.push({
+        name: file.name,
+        type: file.type || 'application/octet-stream',
+        size: file.size,
+        data: dataUrl
+      });
     }
     renderFilesList();
   }
@@ -736,12 +757,15 @@ document.addEventListener('DOMContentLoaded', () => {
   function renderFilesList() {
     if (!filesListContainer) return;
     filesListContainer.innerHTML = '';
-    orderState.uploadedFiles.forEach((fileName, index) => {
+    orderState.uploadedFiles.forEach((fileItem, index) => {
+      const fileName = typeof fileItem === 'string' ? fileItem : fileItem.name;
+      const isImg = typeof fileItem === 'object' && fileItem.data && (fileItem.type?.startsWith('image/') || fileItem.data.startsWith('data:image'));
       const item = document.createElement('div');
       item.className = 'file-item-pill';
       item.innerHTML = `
         <span style="display:flex; align-items:center; gap:0.5rem;">
-          <i class="fa-regular fa-file" style="color:var(--edge-cyan-glow);"></i> ${fileName}
+          ${isImg ? `<img src="${fileItem.data}" style="width:24px; height:24px; object-fit:cover; border-radius:4px;" alt="معاينة">` : '<i class="fa-regular fa-file" style="color:var(--edge-cyan-glow);"></i>'}
+          ${fileName}
         </span>
         <button class="file-remove-btn" data-index="${index}" title="حذف الملف">
           <i class="fa-solid fa-trash-can"></i>
@@ -821,7 +845,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const filesStr = orderState.uploadedFiles.length > 0
-      ? orderState.uploadedFiles.join('، ')
+      ? orderState.uploadedFiles.map(f => typeof f === 'string' ? f : f.name).join('، ')
       : 'لم يتم إرفاق ملفات (سيتم إرسالها عبر الشات)';
 
     summaryContent.innerHTML = `
@@ -883,7 +907,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (orderState.uploadedFiles.length > 0) {
-      msg += `\n*📎 الملفات المرفقة بالتجهيز:* ${orderState.uploadedFiles.join('، ')}\n`;
+      const fileNames = orderState.uploadedFiles.map(f => typeof f === 'string' ? f : f.name).join('، ');
+      msg += `\n*📎 الملفات المرفقة بالتجهيز:* ${fileNames}\n`;
     }
 
     msg += `\n------------------------------------\n`;

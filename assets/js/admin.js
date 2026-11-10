@@ -437,6 +437,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
   fetchServerOrders();
 
+  // كاش المشاريع الحي في الذاكرة لتجنب قيود مساحة localStorage مع الصور الكبيرة
+  let liveAdminProjects = [];
+
+  function safeSaveLocalProjects(projects) {
+    liveAdminProjects = projects;
+    try {
+      localStorage.setItem('edge_custom_projects', JSON.stringify(projects));
+    } catch (e) {
+      console.warn('تجاوز حجم الصور مساحة localStorage، تم الحفظ في الذاكرة الحية بنجاح.');
+    }
+  }
+
+  function getLocalProjects() {
+    if (liveAdminProjects && liveAdminProjects.length > 0) return liveAdminProjects;
+    try {
+      liveAdminProjects = JSON.parse(localStorage.getItem('edge_custom_projects') || '[]');
+    } catch (e) {
+      liveAdminProjects = [];
+    }
+    return liveAdminProjects;
+  }
+
   // مزامنة المشاريع من خادم MongoDB
   async function fetchServerProjects() {
     try {
@@ -456,7 +478,7 @@ document.addEventListener('DOMContentLoaded', () => {
           features: p.features || [],
           showInHome: p.showInHome !== false
         }));
-        localStorage.setItem('edge_custom_projects', JSON.stringify(formatted));
+        safeSaveLocalProjects(formatted);
         renderAdminProjects();
       }
     } catch (e) {
@@ -837,76 +859,93 @@ document.addEventListener('DOMContentLoaded', () => {
     if (uploadProgressText) uploadProgressText.innerHTML = `<i class="fa-solid fa-spinner fa-spin" style="color:var(--edge-cyan-glow);"></i> جاري تجهيز وضغط الصور... (0 / ${totalItems})`;
     if (btnSubmitProjects) btnSubmitProjects.disabled = true;
 
-    const customProjects = JSON.parse(localStorage.getItem('edge_custom_projects') || '[]');
+    try {
+      const customProjects = getLocalProjects();
 
-    for (let i = 0; i < totalItems; i++) {
-      let finalImg = 'assets/img/logo-blue-bg.jpg';
+      for (let i = 0; i < totalItems; i++) {
+        let finalImg = 'assets/img/logo-blue-bg.jpg';
 
-      if (hasFiles) {
-        if (uploadProgressText) {
-          uploadProgressText.innerHTML = `<i class="fa-solid fa-cloud-arrow-up fa-fade" style="color:var(--edge-cyan-glow);"></i> جاري رفع ونشر المشروع (${i + 1} من ${totalItems})...`;
+        if (hasFiles) {
+          if (uploadProgressText) {
+            uploadProgressText.innerHTML = `<i class="fa-solid fa-cloud-arrow-up fa-fade" style="color:var(--edge-cyan-glow);"></i> جاري رفع ونشر المشروع (${i + 1} من ${totalItems})...`;
+          }
+          finalImg = await compressImage(selectedRawFiles[i]);
+        } else if (imgUrlField) {
+          finalImg = imgUrlField;
         }
-        finalImg = await compressImage(selectedRawFiles[i]);
-      } else if (imgUrlField) {
-        finalImg = imgUrlField;
+
+        const projectTitle = totalItems > 1 ? `${title} #${i + 1}` : title;
+
+        const newProject = {
+          id: 'custom-proj-' + Date.now() + '-' + i,
+          title: projectTitle,
+          category: category,
+          categoryName: categoryNames[category] || 'تصميم إبداعي',
+          client: client,
+          year: year,
+          image: finalImg,
+          description: '',
+          tags: tagsStr ? tagsStr.split(',').map(t => t.trim()) : [categoryNames[category]],
+          features: [],
+          showInHome: showInHome
+        };
+
+        customProjects.unshift(newProject);
+
+        // إرسال المشروع إلى قاعدة بيانات MongoDB عبر السيرفر
+        try {
+          const res = await fetch('/api/projects', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + adminToken
+            },
+            body: JSON.stringify(newProject)
+          });
+          const savedData = await res.json();
+          if (savedData.success && savedData.project) {
+            newProject.id = savedData.project.projectId || savedData.project._id || newProject.id;
+          }
+        } catch (err) {
+          console.error('فشل إرسال المشروع للسيرفر:', err);
+        }
+
+        // تحديث شريط التقدم بنسبة مئوية
+        const percent = Math.round(((i + 1) / totalItems) * 100);
+        if (uploadProgressBar) uploadProgressBar.style.width = `${percent}%`;
+        if (uploadProgressPercent) uploadProgressPercent.textContent = `${percent}%`;
       }
 
-      const projectTitle = totalItems > 1 ? `${title} #${i + 1}` : title;
+      // حفظ آمن بدون انهيار الكود في حال امتلاء الـ LocalStorage
+      safeSaveLocalProjects(customProjects);
 
-      const newProject = {
-        id: 'custom-proj-' + Date.now() + '-' + i,
-        title: projectTitle,
-        category: category,
-        categoryName: categoryNames[category] || 'تصميم إبداعي',
-        client: client,
-        year: year,
-        image: finalImg,
-        description: '',
-        tags: tagsStr ? tagsStr.split(',').map(t => t.trim()) : [categoryNames[category]],
-        features: [],
-        showInHome: showInHome
-      };
+      if (uploadProgressText) {
+        uploadProgressText.innerHTML = `<i class="fa-solid fa-circle-check" style="color:#10B981;"></i> اكتمل الرفع بنجاح 100%!`;
+      }
+      if (uploadProgressBar) uploadProgressBar.style.width = '100%';
+      if (uploadProgressPercent) uploadProgressPercent.textContent = '100%';
 
-      customProjects.unshift(newProject);
-
-      // إرسال المشروع إلى قاعدة بيانات MongoDB عبر السيرفر
-      try {
-        const res = await fetch('/api/projects', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + adminToken
-          },
-          body: JSON.stringify(newProject)
-        });
-        const savedData = await res.json();
-        if (savedData.success && savedData.project) {
-          newProject.id = savedData.project.projectId || savedData.project._id || newProject.id;
+      setTimeout(async () => {
+        try {
+          if (uploadProgressContainer) uploadProgressContainer.style.display = 'none';
+          if (btnSubmitProjects) btnSubmitProjects.disabled = false;
+          addProjectForm.reset();
+          selectedRawFiles = [];
+          document.getElementById('proj-img-preview-label').textContent = 'اختر صورة أو صوراً متعددة';
+          await fetchServerProjects();
+          renderAdminProjects();
+          alert(totalItems > 1 ? `تم نشر (${totalItems}) مشاريع بنجاح 100% في المعرض!` : 'تم نشر المشروع بنجاح 100% في المعرض!');
+        } catch (postErr) {
+          console.error(postErr);
         }
-      } catch (err) {}
+      }, 500);
 
-      // تحديث شريط التقدم بنسبة مئوية
-      const percent = Math.round(((i + 1) / totalItems) * 100);
-      if (uploadProgressBar) uploadProgressBar.style.width = `${percent}%`;
-      if (uploadProgressPercent) uploadProgressPercent.textContent = `${percent}%`;
-    }
-
-    localStorage.setItem('edge_custom_projects', JSON.stringify(customProjects));
-
-    if (uploadProgressText) {
-      uploadProgressText.innerHTML = `<i class="fa-solid fa-circle-check" style="color:#10B981;"></i> اكتمل الرفع بنجاح 100%!`;
-    }
-
-    setTimeout(async () => {
+    } catch (mainErr) {
+      console.error('خطأ أثناء رفع المشاريع:', mainErr);
       if (uploadProgressContainer) uploadProgressContainer.style.display = 'none';
       if (btnSubmitProjects) btnSubmitProjects.disabled = false;
-      addProjectForm.reset();
-      selectedRawFiles = [];
-      document.getElementById('proj-img-preview-label').textContent = 'اختر صورة أو صوراً متعددة';
-      await fetchServerProjects();
-      renderAdminProjects();
-      alert(totalItems > 1 ? `تم نشر (${totalItems}) مشاريع بنجاح 100% في المعرض!` : 'تم نشر المشروع بنجاح 100% في المعرض!');
-    }, 600);
+      alert('حدث خطأ أثناء معالجة الصور، يرجى المحاولة مجدداً.');
+    }
   });
 
   // تصنيف المشاريع الحالي في لوحة التحكم
@@ -929,7 +968,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // جلب كافة المشاريع مع التعديلات المحفوظة
   function getAllAdminProjects() {
-    const customProjects = JSON.parse(localStorage.getItem('edge_custom_projects') || '[]');
+    const customProjects = getLocalProjects();
     const baseProjects = (typeof portfolioData !== 'undefined') ? portfolioData : [];
     
     // دمج المشاريع وتجاوز المعدل منها
@@ -1008,11 +1047,11 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.btn-toggle-home').forEach(btn => {
       btn.addEventListener('click', async () => {
         const id = btn.getAttribute('data-id');
-        let customProjects = JSON.parse(localStorage.getItem('edge_custom_projects') || '[]');
+        let customProjects = getLocalProjects();
         const target = customProjects.find(p => p.id === id);
         if (target) {
           target.showInHome = !target.showInHome;
-          localStorage.setItem('edge_custom_projects', JSON.stringify(customProjects));
+          safeSaveLocalProjects(customProjects);
           renderAdminProjects();
           try {
             await fetch(`/api/projects/${id}`, {
@@ -1048,9 +1087,9 @@ document.addEventListener('DOMContentLoaded', () => {
             });
           } catch (e) {}
 
-          let customProjects = JSON.parse(localStorage.getItem('edge_custom_projects') || '[]');
+          let customProjects = getLocalProjects();
           customProjects = customProjects.filter(p => p.id !== id);
-          localStorage.setItem('edge_custom_projects', JSON.stringify(customProjects));
+          safeSaveLocalProjects(customProjects);
           renderAdminProjects();
         }
       });
@@ -1143,7 +1182,7 @@ document.addEventListener('DOMContentLoaded', () => {
       showInHome: showInHome
     };
 
-    let customProjects = JSON.parse(localStorage.getItem('edge_custom_projects') || '[]');
+    let customProjects = getLocalProjects();
     const existingIndex = customProjects.findIndex(p => p.id === id);
 
     if (existingIndex !== -1) {
@@ -1164,7 +1203,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     } catch (e) {}
 
-    localStorage.setItem('edge_custom_projects', JSON.stringify(customProjects));
+    safeSaveLocalProjects(customProjects);
     closeEditProjectModal();
     renderAdminProjects();
     alert('تم حفظ وتحديث بيانات المشروع بنجاح! التعديلات تظهر فوراً في المعرض.');

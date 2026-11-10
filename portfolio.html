@@ -129,7 +129,9 @@
             features: p.features || [],
             showInHome: p.showInHome !== false
           }));
-          localStorage.setItem('edge_custom_projects', JSON.stringify(allProjects));
+          try {
+            localStorage.setItem('edge_custom_projects', JSON.stringify(allProjects));
+          } catch (storageErr) {}
         }
       } catch (e) {}
 

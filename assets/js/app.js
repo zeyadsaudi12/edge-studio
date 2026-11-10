@@ -32,6 +32,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const portfolioContainer = document.getElementById('portfolio-grid');
   const portfolioTabs = document.querySelectorAll('.portfolio-tabs .tab-btn');
 
+  let cachedPortfolioItems = [];
+
   // جلب جميع المشاريع (من الـ API أو التخزين المحلي)
   async function fetchServerProjects() {
     try {
@@ -51,12 +53,19 @@ document.addEventListener('DOMContentLoaded', () => {
           features: p.features || [],
           showInHome: p.showInHome !== false
         }));
-        localStorage.setItem('edge_custom_projects', JSON.stringify(formatted));
+        cachedPortfolioItems = formatted;
+        try {
+          localStorage.setItem('edge_custom_projects', JSON.stringify(formatted));
+        } catch (e) {}
         return formatted;
       }
     } catch (e) {}
 
-    const customProjects = JSON.parse(localStorage.getItem('edge_custom_projects') || '[]');
+    if (cachedPortfolioItems.length > 0) return cachedPortfolioItems;
+    let customProjects = [];
+    try {
+      customProjects = JSON.parse(localStorage.getItem('edge_custom_projects') || '[]');
+    } catch (e) {}
     const baseProjects = (typeof portfolioData !== 'undefined') ? portfolioData : [];
     const customIds = new Set(customProjects.map(p => p.id));
     const unoverriddenBase = baseProjects.filter(p => !customIds.has(p.id));
@@ -64,7 +73,11 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function getAllPortfolioItems() {
-    const customProjects = JSON.parse(localStorage.getItem('edge_custom_projects') || '[]');
+    if (cachedPortfolioItems.length > 0) return cachedPortfolioItems;
+    let customProjects = [];
+    try {
+      customProjects = JSON.parse(localStorage.getItem('edge_custom_projects') || '[]');
+    } catch (e) {}
     const baseProjects = (typeof portfolioData !== 'undefined') ? portfolioData : [];
     const customIds = new Set(customProjects.map(p => p.id));
     const unoverriddenBase = baseProjects.filter(p => !customIds.has(p.id));

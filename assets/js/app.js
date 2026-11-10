@@ -89,7 +89,14 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    filteredItems.forEach((item, index) => {
+    // في الصفحة الرئيسية: عرض المشاريع المحددة فقط بحد أقصى (مثلاً 5 إلى 6 تصاميم مميزة)
+    const homeItems = filteredItems
+      .filter(item => item.showInHome !== false)
+      .slice(0, 6);
+
+    const itemsToDisplay = homeItems.length > 0 ? homeItems : filteredItems.slice(0, 6);
+
+    itemsToDisplay.forEach((item, index) => {
       const card = document.createElement('div');
       card.className = 'portfolio-card';
       card.setAttribute('data-category', item.category);
@@ -162,28 +169,23 @@ document.addEventListener('DOMContentLoaded', () => {
       <div class="modal-img-container">
         <img src="${item.gallery ? item.gallery[0] : item.image}" alt="${item.title}">
       </div>
-      <div class="modal-meta-row" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
-        <span class="section-badge">${item.categoryName}</span>
-        <span style="color:var(--text-dim); font-size:0.9rem;"><i class="fa-regular fa-calendar"></i> سنة التنفيذ: ${item.year}</span>
-      </div>
-      <h2 style="font-size:1.8rem; margin-bottom:0.6rem;">${item.title}</h2>
-      <p style="color:var(--text-accent); font-weight:600; margin-bottom:1.2rem;"><i class="fa-solid fa-user-tie"></i> العميل: ${item.client}</p>
-      ${item.description ? `<p style="color:var(--text-muted); line-height:1.8; margin-bottom:1.5rem;">${item.description}</p>` : ''}
-      
-      ${featuresList ? `
-      <div style="background:rgba(10,25,55,0.4); border:1px solid var(--border-subtle); padding:1.2rem; border-radius:12px; margin-bottom:1.8rem;">
-        <h4 style="margin-bottom:0.8rem; font-size:1.1rem; color:#fff;">أبرز ما تم إنجازه في المشروع:</h4>
-        <ul style="padding:0;">${featuresList}</ul>
-      </div>
-      ` : ''}
-
-      <div style="display:flex; gap:1rem; flex-wrap:wrap;">
-        <button class="btn btn-primary" onclick="window.requestSpecificCategory('${item.category}', '${item.title}')">
-          <i class="fa-solid fa-paper-plane"></i> طلب تصميم مشابه لمشروعي
-        </button>
-        <button class="btn btn-outline" id="modal-close-action">
-          إغلاق المعاينة
-        </button>
+      <div class="modal-details-body">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.8rem;">
+          <span class="section-badge" style="font-size:0.8rem; padding:0.25rem 0.75rem;">${item.categoryName}</span>
+          <span style="color:var(--text-dim); font-size:0.85rem;"><i class="fa-regular fa-calendar"></i> سنة التنفيذ: ${item.year}</span>
+        </div>
+        <h2 style="font-size:1.45rem; margin-bottom:0.4rem; color:#fff;">${item.title}</h2>
+        <p style="color:var(--text-accent); font-weight:600; font-size:0.95rem; margin-bottom:1rem;"><i class="fa-solid fa-user-tie"></i> العميل: ${item.client}</p>
+        ${item.description ? `<p style="color:var(--text-muted); line-height:1.7; font-size:0.9rem; margin-bottom:1.2rem;">${item.description}</p>` : ''}
+        
+        <div style="display:flex; gap:0.8rem; flex-wrap:wrap; margin-top:0.5rem;">
+          <button class="btn btn-primary btn-sm" onclick="window.requestSpecificCategory('${item.category}', '${item.title}')" style="flex:1;">
+            <i class="fa-solid fa-paper-plane"></i> طلب تصميم مشابه
+          </button>
+          <button class="btn btn-outline btn-sm" id="modal-close-action">
+            إغلاق المعاينة
+          </button>
+        </div>
       </div>
     `;
 

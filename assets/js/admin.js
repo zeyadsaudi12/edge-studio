@@ -785,6 +785,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const client = document.getElementById('proj-client').value.trim() || 'عميل استوديو EDGE';
     const year = document.getElementById('proj-year').value.trim() || new Date().getFullYear().toString();
     const tagsStr = document.getElementById('proj-tags').value.trim();
+    const showInHome = document.getElementById('proj-show-in-home') ? document.getElementById('proj-show-in-home').checked : true;
     const imgUrlField = document.getElementById('proj-img-url').value.trim();
 
     const categoryNames = {
@@ -829,7 +830,8 @@ document.addEventListener('DOMContentLoaded', () => {
         image: finalImg,
         description: '',
         tags: tagsStr ? tagsStr.split(',').map(t => t.trim()) : [categoryNames[category]],
-        features: []
+        features: [],
+        showInHome: showInHome
       };
 
       customProjects.unshift(newProject);
@@ -940,7 +942,10 @@ document.addEventListener('DOMContentLoaded', () => {
         <div class="admin-project-body">
           <div style="display:flex; justify-content:space-between; align-items:center;">
             <span class="badge-status in_progress">${proj.categoryName}</span>
-            <span style="font-size:0.75rem; color:var(--text-dim);">${proj.year}</span>
+            <div style="display:flex; align-items:center; gap:0.5rem;">
+              ${proj.showInHome !== false ? '<span style="font-size:0.75rem; color:#FBBF24; font-weight:600;"><i class="fa-solid fa-star"></i> في الرئيسية</span>' : ''}
+              <span style="font-size:0.75rem; color:var(--text-dim);">${proj.year}</span>
+            </div>
           </div>
           <h4 style="font-size:1.1rem; margin:0.3rem 0;">${proj.title}</h4>
           <p style="font-size:0.82rem; color:var(--text-dim); margin-bottom:0.2rem;"><i class="fa-solid fa-user-tie"></i> ${proj.client || 'عميل EDGE'}</p>
@@ -1032,6 +1037,9 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('edit-proj-year').value = proj.year || '';
     document.getElementById('edit-proj-img-url').value = proj.image || '';
     document.getElementById('edit-proj-tags').value = proj.tags ? proj.tags.join(', ') : '';
+    if (document.getElementById('edit-proj-show-in-home')) {
+      document.getElementById('edit-proj-show-in-home').checked = proj.showInHome !== false;
+    }
 
     editSelectedImgBase64 = '';
     document.getElementById('edit-proj-file-label').textContent = 'اختيار صورة جديدة من جهازك';
@@ -1059,6 +1067,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const year = document.getElementById('edit-proj-year').value.trim() || '2024';
     const imgUrl = document.getElementById('edit-proj-img-url').value.trim();
     const tagsStr = document.getElementById('edit-proj-tags').value.trim();
+    const showInHome = document.getElementById('edit-proj-show-in-home') ? document.getElementById('edit-proj-show-in-home').checked : true;
 
     const finalImg = editSelectedImgBase64 || imgUrl || 'assets/img/logo-blue-bg.jpg';
 
@@ -1078,7 +1087,8 @@ document.addEventListener('DOMContentLoaded', () => {
       image: finalImg,
       description: '',
       tags: tagsStr ? tagsStr.split(',').map(t => t.trim()) : [categoryNames[category]],
-      features: []
+      features: [],
+      showInHome: showInHome
     };
 
     let customProjects = JSON.parse(localStorage.getItem('edge_custom_projects') || '[]');

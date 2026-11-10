@@ -55,6 +55,14 @@ app.get('/login.html', (req, res) => {
   res.sendFile(path.join(__dirname, 'login.html'));
 });
 
+app.get('/portfolio', (req, res) => {
+  res.sendFile(path.join(__dirname, 'portfolio.html'));
+});
+
+app.get('/portfolio.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'portfolio.html'));
+});
+
 // حالة الاتصال بقاعدة البيانات وإعادة استخدام الاتصال في Serverless
 let isDbConnected = false;
 let dbConnectingPromise = null;
@@ -474,9 +482,10 @@ app.post('/api/projects', requireAdmin, async (req, res) => {
       client: data.client || 'عميل EDGE',
       year: data.year || new Date().getFullYear().toString(),
       image: data.image,
-      description: data.description,
+      description: data.description || '',
       tags: data.tags || [],
       features: data.features || [],
+      showInHome: data.showInHome !== undefined ? data.showInHome : true,
       isCustom: true
     });
 

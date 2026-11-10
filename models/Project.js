@@ -45,6 +45,10 @@ const ProjectSchema = new mongoose.Schema({
     type: [String],
     default: []
   },
+  showInHome: {
+    type: Boolean,
+    default: true
+  },
   isCustom: {
     type: Boolean,
     default: true

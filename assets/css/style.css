@@ -1401,14 +1401,16 @@ img {
   background: var(--bg-card);
   border: 1px solid var(--border-active);
   border-radius: var(--radius-lg);
-  max-width: 850px;
-  width: 100%;
-  max-height: 90vh;
-  overflow-y: auto;
-  box-shadow: var(--card-shadow), var(--glow-strong);
+  max-width: 600px;
+  width: 92%;
+  max-height: 92vh;
+  overflow: hidden;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), var(--glow-strong);
   position: relative;
   transform: scale(0.95);
   transition: transform var(--transition-smooth);
+  display: flex;
+  flex-direction: column;
 }
 
 .modal-overlay.active .modal-dialog {
@@ -1417,19 +1419,19 @@ img {
 
 .modal-close-btn {
   position: absolute;
-  top: 18px;
-  left: 18px;
-  background: rgba(5, 11, 23, 0.7);
+  top: 15px;
+  left: 15px;
+  background: rgba(3, 8, 22, 0.75);
   border: 1px solid var(--border-subtle);
   color: #FFFFFF;
-  width: 38px;
-  height: 38px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  z-index: 10;
+  z-index: 20;
   transition: all var(--transition-fast);
 }
 
@@ -1439,20 +1441,36 @@ img {
 }
 
 .modal-content-wrap {
-  padding: 2.2rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  max-height: 92vh;
 }
 
 .modal-img-container {
-  border-radius: var(--radius-md);
+  border-radius: 0;
+  margin-bottom: 0;
+  background: #000000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-height: 62vh;
   overflow: hidden;
-  margin-bottom: 1.5rem;
-  background: #020713;
 }
 
 .modal-img-container img {
   width: 100%;
-  max-height: 480px;
-  object-fit: cover;
+  height: 100%;
+  max-height: 62vh;
+  object-fit: contain;
+  display: block;
+}
+
+.modal-details-body {
+  padding: 1.4rem 1.8rem;
+  background: var(--bg-card);
 }
 
 /* ==========================================================================

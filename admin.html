@@ -403,9 +403,14 @@
 
           <!-- شريط أقسام وتصنيفات المشاريع -->
           <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem;">
-            <h3 style="font-size:1.3rem; margin:0; color:var(--text-main);">
-              <i class="fa-solid fa-layer-group" style="color:var(--edge-cyan-glow);"></i> مشاريع المعرض مقسمة حسب التخصص
-            </h3>
+            <div style="display:flex; align-items:center; gap:0.8rem; flex-wrap:wrap;">
+              <h3 style="font-size:1.3rem; margin:0; color:var(--text-main);">
+                <i class="fa-solid fa-layer-group" style="color:var(--edge-cyan-glow);"></i> مشاريع المعرض مقسمة حسب التخصص
+              </h3>
+              <button class="btn btn-outline btn-sm" id="btn-sync-local-projects" title="مزامنة ونقل كل المشاريع المحفوظة حالياً إلى قاعدة البيانات السحابية">
+                <i class="fa-solid fa-cloud-arrow-up" style="color:var(--edge-cyan-glow);"></i> مزامنة المشاريع الموجودة إلى السحابة ☁️
+              </button>
+            </div>
 
             <!-- أزرار الأقسام: سوشيال ميديا / مطبوعات / هوية بصرية -->
             <div style="display:flex; gap:0.6rem; flex-wrap:wrap;">

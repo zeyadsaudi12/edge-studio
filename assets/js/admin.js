@@ -167,6 +167,7 @@ document.addEventListener('DOMContentLoaded', () => {
       renderOrdersTable();
       updateStatistics();
     } else if (targetViewId === 'view-projects') {
+      fetchServerProjects();
       renderAdminProjects();
     } else if (targetViewId === 'view-packages') {
       if (extraParams.pkgFilter) {
@@ -441,26 +442,58 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const res = await fetch('/api/projects');
       const data = await res.json();
-      if (data.success && Array.isArray(data.projects) && data.projects.length > 0) {
+      if (data.success && Array.isArray(data.projects)) {
         const formatted = data.projects.map(p => ({
           id: p.projectId || p._id || p.id,
           title: p.title,
           category: p.category,
-          categoryName: p.categoryName,
+          categoryName: p.categoryName || 'تصميم إبداعي',
           client: p.client,
           year: p.year,
           image: p.image,
-          description: p.description,
-          tags: p.tags,
-          features: p.features
+          description: p.description || '',
+          tags: p.tags || [],
+          features: p.features || [],
+          showInHome: p.showInHome !== false
         }));
         localStorage.setItem('edge_custom_projects', JSON.stringify(formatted));
         renderAdminProjects();
       }
-    } catch (e) {}
+    } catch (e) {
+      console.error('فشل جلب المشاريع من السيرفر:', e);
+    }
   }
 
   fetchServerProjects();
+
+  // مزامنة المشاريع المحفوظة محلياً مع قاعدة البيانات السحابية
+  document.getElementById('btn-sync-local-projects')?.addEventListener('click', async () => {
+    const localProjects = JSON.parse(localStorage.getItem('edge_custom_projects') || '[]');
+    if (localProjects.length === 0) {
+      alert('لا توجد مشاريع محفوظة محلياً للمزامنة.');
+      return;
+    }
+    if (!confirm(`سيتم رفع ${localProjects.length} مشروع إلى قاعدة البيانات السحابية. هل تريد المتابعة؟`)) return;
+
+    let synced = 0, failed = 0;
+    for (const proj of localProjects) {
+      try {
+        const res = await fetch('/api/projects', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + adminToken
+          },
+          body: JSON.stringify({ ...proj, description: proj.description || '' })
+        });
+        const result = await res.json();
+        if (result.success) synced++;
+        else failed++;
+      } catch (e) { failed++; }
+    }
+    alert(`تمت المزامنة! تم رفع ${synced} مشروع بنجاح${failed > 0 ? `، فشل ${failed}` : ''}.`);
+    await fetchServerProjects();
+  });
 
   async function updateOrderStatus(orderId, newStatus) {
     const orders = JSON.parse(localStorage.getItem('edge_orders') || '[]');
@@ -731,7 +764,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let selectedRawFiles = [];
 
   // ضغط وتصغير حجم الصورة عبر Canvas لجعل الرفع فائق السرعة
-  function compressImage(file, maxWidth = 1600, quality = 0.8) {
+  function compressImage(file, maxWidth = 1200, quality = 0.75) {
     return new Promise((resolve) => {
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -838,7 +871,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // إرسال المشروع إلى قاعدة بيانات MongoDB عبر السيرفر
       try {
-        await fetch('/api/projects', {
+        const res = await fetch('/api/projects', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -846,6 +879,10 @@ document.addEventListener('DOMContentLoaded', () => {
           },
           body: JSON.stringify(newProject)
         });
+        const savedData = await res.json();
+        if (savedData.success && savedData.project) {
+          newProject.id = savedData.project.projectId || savedData.project._id || newProject.id;
+        }
       } catch (err) {}
 
       // تحديث شريط التقدم بنسبة مئوية
@@ -860,12 +897,13 @@ document.addEventListener('DOMContentLoaded', () => {
       uploadProgressText.innerHTML = `<i class="fa-solid fa-circle-check" style="color:#10B981;"></i> اكتمل الرفع بنجاح 100%!`;
     }
 
-    setTimeout(() => {
+    setTimeout(async () => {
       if (uploadProgressContainer) uploadProgressContainer.style.display = 'none';
       if (btnSubmitProjects) btnSubmitProjects.disabled = false;
       addProjectForm.reset();
       selectedRawFiles = [];
       document.getElementById('proj-img-preview-label').textContent = 'اختر صورة أو صوراً متعددة';
+      await fetchServerProjects();
       renderAdminProjects();
       alert(totalItems > 1 ? `تم نشر (${totalItems}) مشاريع بنجاح 100% في المعرض!` : 'تم نشر المشروع بنجاح 100% في المعرض!');
     }, 600);
@@ -943,7 +981,9 @@ document.addEventListener('DOMContentLoaded', () => {
           <div style="display:flex; justify-content:space-between; align-items:center;">
             <span class="badge-status in_progress">${proj.categoryName}</span>
             <div style="display:flex; align-items:center; gap:0.5rem;">
-              ${proj.showInHome !== false ? '<span style="font-size:0.75rem; color:#FBBF24; font-weight:600;"><i class="fa-solid fa-star"></i> في الرئيسية</span>' : ''}
+              <button class="btn btn-outline btn-sm btn-toggle-home" data-id="${proj.id}" title="تغيير حالة الظهور بالصفحة الرئيسية" style="font-size:0.75rem; padding:0.25rem 0.6rem; cursor:pointer; ${proj.showInHome !== false ? 'color:#FBBF24; border-color:rgba(251,191,36,0.4); background:rgba(251,191,36,0.1);' : 'color:var(--text-dim); border-color:var(--border-subtle);'}">
+                <i class="fa-solid fa-star"></i> ${proj.showInHome !== false ? 'في الرئيسية' : 'مخفي من الرئيسية'}
+              </button>
               <span style="font-size:0.75rem; color:var(--text-dim);">${proj.year}</span>
             </div>
           </div>
@@ -964,6 +1004,30 @@ document.addEventListener('DOMContentLoaded', () => {
       adminProjectsContainer.appendChild(card);
     });
 
+    // ربط أزرار التبديل السريع للظهور بالصفحة الرئيسية
+    document.querySelectorAll('.btn-toggle-home').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-id');
+        let customProjects = JSON.parse(localStorage.getItem('edge_custom_projects') || '[]');
+        const target = customProjects.find(p => p.id === id);
+        if (target) {
+          target.showInHome = !target.showInHome;
+          localStorage.setItem('edge_custom_projects', JSON.stringify(customProjects));
+          renderAdminProjects();
+          try {
+            await fetch(`/api/projects/${id}`, {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + adminToken
+              },
+              body: JSON.stringify({ showInHome: target.showInHome })
+            });
+          } catch (e) {}
+        }
+      });
+    });
+
     // ربط أزرار التعديل
     document.querySelectorAll('.btn-edit-proj').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -974,11 +1038,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ربط أزرار الحذف
     document.querySelectorAll('.btn-delete-proj').forEach(btn => {
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', async () => {
         const id = btn.getAttribute('data-id');
         if (confirm('هل تريد بالتأكيد حذف هذا المشروع من معرض الأعمال؟')) {
           try {
-            fetch(`/api/projects/${id}`, {
+            await fetch(`/api/projects/${id}`, {
               method: 'DELETE',
               headers: { 'Authorization': 'Bearer ' + adminToken }
             });
@@ -986,19 +1050,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
           let customProjects = JSON.parse(localStorage.getItem('edge_custom_projects') || '[]');
           customProjects = customProjects.filter(p => p.id !== id);
-          // إرسال التحديث إلى قاعدة بيانات MongoDB
-    try {
-      fetch(`/api/projects/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + adminToken
-        },
-        body: JSON.stringify(updatedProject)
-      });
-    } catch (e) {}
-
-    localStorage.setItem('edge_custom_projects', JSON.stringify(customProjects));
+          localStorage.setItem('edge_custom_projects', JSON.stringify(customProjects));
           renderAdminProjects();
         }
       });

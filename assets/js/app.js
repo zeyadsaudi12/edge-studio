@@ -42,13 +42,14 @@ document.addEventListener('DOMContentLoaded', () => {
           id: p.projectId || p._id || p.id,
           title: p.title,
           category: p.category,
-          categoryName: p.categoryName,
-          client: p.client,
-          year: p.year,
+          categoryName: p.categoryName || 'تصميم إبداعي',
+          client: p.client || 'عميل EDGE',
+          year: p.year || '',
           image: p.image,
-          description: p.description,
-          tags: p.tags,
-          features: p.features
+          description: p.description || '',
+          tags: p.tags || [],
+          features: p.features || [],
+          showInHome: p.showInHome !== false
         }));
         localStorage.setItem('edge_custom_projects', JSON.stringify(formatted));
         return formatted;
@@ -144,8 +145,24 @@ document.addEventListener('DOMContentLoaded', () => {
     tab.addEventListener('click', () => {
       portfolioTabs.forEach(t => t.classList.remove('active'));
       tab.classList.add('active');
-      const cat = tab.getAttribute('data-filter');
+      const cat = tab.getAttribute('data-filter') || 'all';
       renderPortfolio(cat);
+
+      // تحديث زر الانتقال لصفحة المعرض الكاملة حسب القسم المختار
+      const btnViewAll = document.getElementById('btn-view-all-gallery');
+      if (btnViewAll) {
+        const catTitles = {
+          all: 'جميع التصاميم',
+          social: 'تصاميم سوشيال ميديا',
+          print: 'مطبوعات وتغليف',
+          branding: 'هويات بصرية'
+        };
+        btnViewAll.href = cat === 'all' ? 'portfolio.html' : `portfolio.html?cat=${cat}`;
+        btnViewAll.innerHTML = `
+          <i class="fa-solid fa-layer-group"></i> تصفح كافة ${catTitles[cat] || 'التصاميم'} في صفحة مستقلة
+          <i class="fa-solid fa-arrow-up-right-from-square" style="margin-right:0.5rem; font-size:0.9rem;"></i>
+        `;
+      }
     });
   });
 

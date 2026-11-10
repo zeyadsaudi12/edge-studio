@@ -9,7 +9,7 @@ const OrderSchema = new mongoose.Schema({
   },
   service: {
     type: String,
-    required: true
+    default: 'طلب تصميم إبداعي'
   },
   category: {
     type: String,
@@ -22,17 +22,16 @@ const OrderSchema = new mongoose.Schema({
   },
   price: {
     type: Number,
-    required: true,
     default: 0
   },
   clientName: {
     type: String,
-    required: true,
+    default: 'عميل استوديو EDGE',
     trim: true
   },
   clientPhone: {
     type: String,
-    required: true,
+    default: 'غير مسجل',
     trim: true
   },
   clientEmail: {

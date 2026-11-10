@@ -289,12 +289,15 @@ app.post('/api/orders', async (req, res) => {
     };
 
     if (isDbConnected) {
-      const newOrder = new Order(orderPayload);
-      await newOrder.save();
+      const savedOrder = await Order.findOneAndUpdate(
+        { orderId: orderPayload.orderId },
+        { $set: orderPayload },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+      );
       return res.status(201).json({
         success: true,
         message: 'تم تسجيل الطلب في قاعدة البيانات بنجاح.',
-        order: newOrder
+        order: savedOrder
       });
     } else {
       // في حالة عدم اتصال Mongo يتم الرد لتخزين العميل في localStorage

@@ -164,6 +164,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // تحديث المحتويات عند الانتقال
     if (targetViewId === 'view-overview' || targetViewId === 'view-orders') {
+      fetchServerOrders(); // جلب أحدث الطلبات مباشرة من MongoDB عند كل تنقل
       renderOrdersTable();
       updateStatistics();
     } else if (targetViewId === 'view-projects') {

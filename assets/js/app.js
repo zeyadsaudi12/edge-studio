@@ -941,6 +941,42 @@ document.addEventListener('DOMContentLoaded', () => {
     window.open(waUrl, '_blank');
   });
 
+  // زر التأكيد والإرسال المباشر للاستوديو (بدون واتساب)
+  const btnSubmitOrderDirect = document.getElementById('btn-submit-order-direct');
+  btnSubmitOrderDirect?.addEventListener('click', async () => {
+    const alertEl = document.getElementById('order-submit-alert');
+    btnSubmitOrderDirect.disabled = true;
+    btnSubmitOrderDirect.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري إرسال طلبك...';
+
+    try {
+      const order = await saveOrderToStorage();
+      if (alertEl) {
+        alertEl.style.display = 'block';
+        alertEl.style.background = 'rgba(16,185,129,0.15)';
+        alertEl.style.border = '1px solid rgba(16,185,129,0.4)';
+        alertEl.style.color = '#10B981';
+        alertEl.style.borderRadius = '10px';
+        alertEl.style.padding = '12px 16px';
+        alertEl.style.marginTop = '12px';
+        alertEl.innerHTML = `<i class="fa-solid fa-circle-check"></i> تم إرسال طلبك رقم <strong>${order.id}</strong> بنجاح! سيتواصل معك فريق EDGE قريباً.`;
+      }
+      btnSubmitOrderDirect.innerHTML = '<i class="fa-solid fa-check"></i> تم الإرسال بنجاح ✅';
+    } catch (e) {
+      if (alertEl) {
+        alertEl.style.display = 'block';
+        alertEl.style.background = 'rgba(239,68,68,0.15)';
+        alertEl.style.border = '1px solid rgba(239,68,68,0.4)';
+        alertEl.style.color = '#EF4444';
+        alertEl.style.borderRadius = '10px';
+        alertEl.style.padding = '12px 16px';
+        alertEl.style.marginTop = '12px';
+        alertEl.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> حدث خطأ أثناء الإرسال. يرجى استخدام واتساب بدلاً من ذلك.';
+      }
+      btnSubmitOrderDirect.disabled = false;
+      btnSubmitOrderDirect.innerHTML = '<i class="fa-solid fa-paper-plane"></i> تأكيد وإرسال الطلب للاستوديو الآن 🚀';
+    }
+  });
+
   // زر نسخ تفاصيل الطلب
   const btnCopyOrder = document.getElementById('btn-copy-order');
   btnCopyOrder?.addEventListener('click', () => {

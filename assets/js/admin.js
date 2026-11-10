@@ -921,6 +921,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const imgUrlField = document.getElementById('proj-img-url').value.trim();
 
     const categoryNames = {
+      posts: 'بوستات (posts)',
+      covers: 'أغلفة (covers)',
+      frames: 'إطارات (frames)',
+      profiles: 'بروفايلات (Profiles)',
+      thum: 'صور مصغرة (Thum)',
+      certificates: 'شهادات تقدير',
       social: 'سوشيال ميديا',
       print: 'مطبوعات وتغليف',
       branding: 'هوية بصرية'
@@ -1061,14 +1067,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // تحديث أعداد المشاريع في الأزرار
     const countAll = allProjects.length;
-    const countSocial = allProjects.filter(p => p.category === 'social').length;
-    const countPrint = allProjects.filter(p => p.category === 'print').length;
-    const countBranding = allProjects.filter(p => p.category === 'branding').length;
-
+    const cats = ['posts', 'covers', 'frames', 'profiles', 'thum', 'certificates', 'social', 'print', 'branding'];
     if (document.getElementById('count-all-proj')) document.getElementById('count-all-proj').textContent = countAll;
-    if (document.getElementById('count-social-proj')) document.getElementById('count-social-proj').textContent = countSocial;
-    if (document.getElementById('count-print-proj')) document.getElementById('count-print-proj').textContent = countPrint;
-    if (document.getElementById('count-branding-proj')) document.getElementById('count-branding-proj').textContent = countBranding;
+    cats.forEach(c => {
+      const el = document.getElementById(`count-${c}-proj`);
+      if (el) el.textContent = allProjects.filter(p => p.category === c).length;
+    });
 
     // تصفية المشاريع حسب القسم المختار (سوشيال ميديا، مطبوعات، هوية بصرية)
     const filteredProjects = currentProjectFilter === 'all'
@@ -1240,6 +1244,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const finalImg = editSelectedImgBase64 || imgUrl || 'assets/img/logo-blue-bg.jpg';
 
     const categoryNames = {
+      posts: 'بوستات (posts)',
+      covers: 'أغلفة (covers)',
+      frames: 'إطارات (frames)',
+      profiles: 'بروفايلات (Profiles)',
+      thum: 'صور مصغرة (Thum)',
+      certificates: 'شهادات تقدير',
       social: 'سوشيال ميديا',
       print: 'مطبوعات وتغليف',
       branding: 'هوية بصرية'

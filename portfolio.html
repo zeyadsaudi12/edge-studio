@@ -49,19 +49,37 @@
         </p>
       </div>
 
-      <!-- أزرار تبديل الأقسام -->
-      <div class="portfolio-tabs" style="margin-bottom:2.5rem;">
+      <!-- أزرار تبديل الأقسام والتصنيفات -->
+      <div class="portfolio-tabs" style="margin-bottom:2.5rem; display:flex; flex-wrap:wrap; gap:0.5rem; justify-content:center;">
         <button class="tab-btn active" data-filter="all">
           <i class="fa-solid fa-border-all"></i> جميع الأعمال (<span id="count-all">0</span>)
+        </button>
+        <button class="tab-btn" data-filter="posts">
+          <i class="fa-solid fa-image"></i> بوستات (<span id="count-posts">0</span>)
+        </button>
+        <button class="tab-btn" data-filter="covers">
+          <i class="fa-solid fa-rectangle-ad"></i> أغلفة covers (<span id="count-covers">0</span>)
+        </button>
+        <button class="tab-btn" data-filter="frames">
+          <i class="fa-regular fa-square"></i> إطارات frames (<span id="count-frames">0</span>)
+        </button>
+        <button class="tab-btn" data-filter="profiles">
+          <i class="fa-solid fa-id-badge"></i> بروفايلات Profiles (<span id="count-profiles">0</span>)
+        </button>
+        <button class="tab-btn" data-filter="thum">
+          <i class="fa-brands fa-youtube"></i> ثمنيل Thum (<span id="count-thum">0</span>)
+        </button>
+        <button class="tab-btn" data-filter="certificates">
+          <i class="fa-solid fa-award"></i> شهادات تقدير (<span id="count-certificates">0</span>)
         </button>
         <button class="tab-btn" data-filter="social">
           <i class="fa-solid fa-share-nodes"></i> سوشيال ميديا (<span id="count-social">0</span>)
         </button>
         <button class="tab-btn" data-filter="print">
-          <i class="fa-solid fa-print"></i> مطبوعات وتغليف (<span id="count-print">0</span>)
+          <i class="fa-solid fa-print"></i> مطبوعات (<span id="count-print">0</span>)
         </button>
         <button class="tab-btn" data-filter="branding">
-          <i class="fa-solid fa-wand-magic-sparkles"></i> هوية بصرية (<span id="count-branding">0</span>)
+          <i class="fa-solid fa-wand-magic-sparkles"></i> هوية (<span id="count-branding">0</span>)
         </button>
       </div>
 
@@ -145,14 +163,12 @@
 
       // تحديث أعداد الأزرار
       const total = allProjects.length;
-      const socialCount = allProjects.filter(p => p.category === 'social').length;
-      const printCount = allProjects.filter(p => p.category === 'print').length;
-      const brandCount = allProjects.filter(p => p.category === 'branding').length;
-
-      document.getElementById('count-all').textContent = total;
-      document.getElementById('count-social').textContent = socialCount;
-      document.getElementById('count-print').textContent = printCount;
-      document.getElementById('count-branding').textContent = brandCount;
+      const cats = ['posts', 'covers', 'frames', 'profiles', 'thum', 'certificates', 'social', 'print', 'branding'];
+      if (document.getElementById('count-all')) document.getElementById('count-all').textContent = total;
+      cats.forEach(c => {
+        const el = document.getElementById(`count-${c}`);
+        if (el) el.textContent = allProjects.filter(p => p.category === c).length;
+      });
 
       function render(filter) {
         if (!grid) return;

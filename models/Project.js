@@ -13,7 +13,6 @@ const ProjectSchema = new mongoose.Schema({
   },
   category: {
     type: String,
-    enum: ['social', 'print', 'branding'],
     required: true
   },
   categoryName: {

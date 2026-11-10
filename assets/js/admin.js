@@ -722,27 +722,59 @@ document.addEventListener('DOMContentLoaded', () => {
   const addProjectForm = document.getElementById('add-project-form');
   const adminProjectsContainer = document.getElementById('admin-projects-grid');
   const projectImgInput = document.getElementById('proj-img-file');
-  let selectedProjectImgBase64List = [];
+  const uploadProgressContainer = document.getElementById('upload-progress-container');
+  const uploadProgressBar = document.getElementById('upload-progress-bar');
+  const uploadProgressPercent = document.getElementById('upload-progress-percent');
+  const uploadProgressText = document.getElementById('upload-progress-text');
+  const btnSubmitProjects = document.getElementById('btn-submit-projects');
 
-  // تحويل الصور المرفوعة (واحدة أو أكثر) لـ Base64
-  projectImgInput?.addEventListener('change', async (e) => {
-    const files = Array.from(e.target.files || []);
-    selectedProjectImgBase64List = [];
+  let selectedRawFiles = [];
 
-    if (files.length === 0) return;
+  // ضغط وتصغير حجم الصورة عبر Canvas لجعل الرفع فائق السرعة
+  function compressImage(file, maxWidth = 1600, quality = 0.8) {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          let width = img.width;
+          let height = img.height;
 
-    document.getElementById('proj-img-preview-label').textContent = files.length === 1 
-      ? `تم اختيار: ${files[0].name}` 
-      : `تم اختيار (${files.length}) صور سيتم نشر كل منها كمشروع منفصل`;
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
 
-    for (const file of files) {
-      const base64 = await new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = (event) => resolve(event.target.result);
-        reader.readAsDataURL(file);
-      });
-      selectedProjectImgBase64List.push(base64);
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // تصدير كـ WebP أو JPEG بحجم خفيف جداً
+          const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
+          resolve(compressedBase64);
+        };
+        img.onerror = () => resolve(e.target.result);
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // اختيار الصور
+  projectImgInput?.addEventListener('change', (e) => {
+    selectedRawFiles = Array.from(e.target.files || []);
+
+    if (selectedRawFiles.length === 0) {
+      document.getElementById('proj-img-preview-label').textContent = 'اختر صورة أو صوراً متعددة';
+      return;
     }
+
+    document.getElementById('proj-img-preview-label').textContent = selectedRawFiles.length === 1 
+      ? `تم اختيار: ${selectedRawFiles[0].name}` 
+      : `تم اختيار (${selectedRawFiles.length}) صور سيتم نشر كل منها كمشروع منفصل`;
   });
 
   addProjectForm?.addEventListener('submit', async (e) => {
@@ -761,21 +793,31 @@ document.addEventListener('DOMContentLoaded', () => {
       branding: 'هوية بصرية'
     };
 
-    // تحديد قائمة الصور المطلوب نشرها
-    let imagesToPublish = [];
-    if (selectedProjectImgBase64List.length > 0) {
-      imagesToPublish = selectedProjectImgBase64List;
-    } else if (imgUrlField) {
-      imagesToPublish = [imgUrlField];
-    } else {
-      imagesToPublish = ['assets/img/logo-blue-bg.jpg'];
-    }
+    const hasFiles = selectedRawFiles.length > 0;
+    const totalItems = hasFiles ? selectedRawFiles.length : 1;
+
+    // إظهار شريط التحميل وتعطيل زر النشر أثناء الرفع
+    if (uploadProgressContainer) uploadProgressContainer.style.display = 'block';
+    if (uploadProgressBar) uploadProgressBar.style.width = '0%';
+    if (uploadProgressPercent) uploadProgressPercent.textContent = '0%';
+    if (uploadProgressText) uploadProgressText.innerHTML = `<i class="fa-solid fa-spinner fa-spin" style="color:var(--edge-cyan-glow);"></i> جاري تجهيز وضغط الصور... (0 / ${totalItems})`;
+    if (btnSubmitProjects) btnSubmitProjects.disabled = true;
 
     const customProjects = JSON.parse(localStorage.getItem('edge_custom_projects') || '[]');
 
-    for (let i = 0; i < imagesToPublish.length; i++) {
-      const img = imagesToPublish[i];
-      const projectTitle = imagesToPublish.length > 1 ? `${title} #${i + 1}` : title;
+    for (let i = 0; i < totalItems; i++) {
+      let finalImg = 'assets/img/logo-blue-bg.jpg';
+
+      if (hasFiles) {
+        if (uploadProgressText) {
+          uploadProgressText.innerHTML = `<i class="fa-solid fa-cloud-arrow-up fa-fade" style="color:var(--edge-cyan-glow);"></i> جاري رفع ونشر المشروع (${i + 1} من ${totalItems})...`;
+        }
+        finalImg = await compressImage(selectedRawFiles[i]);
+      } else if (imgUrlField) {
+        finalImg = imgUrlField;
+      }
+
+      const projectTitle = totalItems > 1 ? `${title} #${i + 1}` : title;
 
       const newProject = {
         id: 'custom-proj-' + Date.now() + '-' + i,
@@ -784,7 +826,7 @@ document.addEventListener('DOMContentLoaded', () => {
         categoryName: categoryNames[category] || 'تصميم إبداعي',
         client: client,
         year: year,
-        image: img,
+        image: finalImg,
         description: '',
         tags: tagsStr ? tagsStr.split(',').map(t => t.trim()) : [categoryNames[category]],
         features: []
@@ -792,7 +834,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       customProjects.unshift(newProject);
 
-      // إرسال المشروع إلى قاعدة بيانات MongoDB
+      // إرسال المشروع إلى قاعدة بيانات MongoDB عبر السيرفر
       try {
         await fetch('/api/projects', {
           method: 'POST',
@@ -803,21 +845,28 @@ document.addEventListener('DOMContentLoaded', () => {
           body: JSON.stringify(newProject)
         });
       } catch (err) {}
+
+      // تحديث شريط التقدم بنسبة مئوية
+      const percent = Math.round(((i + 1) / totalItems) * 100);
+      if (uploadProgressBar) uploadProgressBar.style.width = `${percent}%`;
+      if (uploadProgressPercent) uploadProgressPercent.textContent = `${percent}%`;
     }
 
     localStorage.setItem('edge_custom_projects', JSON.stringify(customProjects));
 
-    if (imagesToPublish.length > 1) {
-      alert(`تم إضافة ونشر (${imagesToPublish.length}) مشاريع منفصلة بنجاح في المعرض!`);
-    } else {
-      alert('تم إضافة ونشر المشروع بنجاح! سيظهر فوراً في المعرض الرئيسي.');
+    if (uploadProgressText) {
+      uploadProgressText.innerHTML = `<i class="fa-solid fa-circle-check" style="color:#10B981;"></i> اكتمل الرفع بنجاح 100%!`;
     }
 
-    addProjectForm.reset();
-    selectedProjectImgBase64List = [];
-    document.getElementById('proj-img-preview-label').textContent = 'اختر صورة أو صوراً متعددة';
-
-    renderAdminProjects();
+    setTimeout(() => {
+      if (uploadProgressContainer) uploadProgressContainer.style.display = 'none';
+      if (btnSubmitProjects) btnSubmitProjects.disabled = false;
+      addProjectForm.reset();
+      selectedRawFiles = [];
+      document.getElementById('proj-img-preview-label').textContent = 'اختر صورة أو صوراً متعددة';
+      renderAdminProjects();
+      alert(totalItems > 1 ? `تم نشر (${totalItems}) مشاريع بنجاح 100% في المعرض!` : 'تم نشر المشروع بنجاح 100% في المعرض!');
+    }, 600);
   });
 
   // تصنيف المشاريع الحالي في لوحة التحكم

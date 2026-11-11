@@ -89,9 +89,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function updateHomeCategoryCounters(allItems) {
     const total = allItems.length;
+    const homeCount = allItems.filter(p => p.showInHome !== false).length;
     const cats = ['posts', 'covers', 'frames', 'profiles', 'thum', 'certificates', 'social', 'print', 'branding'];
     const elAll = document.getElementById('home-count-all');
-    if (elAll) elAll.textContent = total;
+    if (elAll) elAll.textContent = homeCount;
     cats.forEach(c => {
       const el = document.getElementById(`home-count-${c}`);
       if (el) el.textContent = allItems.filter(p => p.category === c).length;
@@ -112,6 +113,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const showingInfo = document.getElementById('portfolio-showing-info');
     const btnViewAll = document.getElementById('btn-view-all-gallery');
+    const homeCount = allItems.filter(p => p.showInHome !== false).length;
 
     if (filteredItems.length === 0) {
       if (showingInfo) showingInfo.textContent = '';
@@ -122,14 +124,14 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
       `;
       if (btnViewAll) {
-        btnViewAll.innerHTML = `<i class="fa-solid fa-border-all"></i> العودة لعرض جميع الأقسام (${allItems.length} تصميم)`;
+        btnViewAll.innerHTML = `<i class="fa-solid fa-star" style="color:#FBBF24;"></i> العودة إلى قسم آخر الأعمال (${homeCount})`;
       }
       return;
     }
 
     let itemsToDisplay = [];
     const catTitles = {
-      all: 'جميع التصاميم',
+      all: 'آخر الأعمال',
       posts: 'بوستات (Posts)',
       covers: 'أغلفة (Covers)',
       frames: 'إطارات (Frames)',
@@ -150,35 +152,35 @@ document.addEventListener('DOMContentLoaded', () => {
       if (btnViewAll) {
         btnViewAll.style.display = 'inline-flex';
         btnViewAll.innerHTML = `
-          <i class="fa-solid fa-border-all"></i> العودة لعرض جميع الأقسام (${allItems.length} تصميم)
+          <i class="fa-solid fa-star" style="color:#FBBF24;"></i> العودة إلى قسم آخر الأعمال المختارة (${homeCount} تصميم)
           <i class="fa-solid fa-arrow-left" style="margin-right:0.5rem; font-size:0.9rem;"></i>
         `;
       }
     } else {
-      // في قسم "الكل": تبديل بين عرض نماذج مختارة أو كامل المعرض في نفس الصفحة
+      // في قسم "آخر الأعمال": عرض المشاريع المحددة للرئيسية فقط (showInHome !== false)
       if (isShowingAllGallery || forceShowAll) {
         isShowingAllGallery = true;
         itemsToDisplay = allItems;
         if (showingInfo) {
-          showingInfo.innerHTML = `يتم الآن عرض <strong>كافة أعمال الاستوديو بالكامل</strong> (${itemsToDisplay.length} تصميم)`;
+          showingInfo.innerHTML = `يتم الآن عرض <strong>كافة أعمال الاستوديو بالكامل من جميع الأقسام</strong> (${itemsToDisplay.length} تصميم)`;
         }
         if (btnViewAll) {
           btnViewAll.style.display = 'inline-flex';
           btnViewAll.innerHTML = `
-            <i class="fa-solid fa-compress"></i> عرض نماذج مختارة فقط
+            <i class="fa-solid fa-star" style="color:#FBBF24;"></i> عرض آخر الأعمال المحددة للرئيسية فقط (${homeCount} تصميم)
             <i class="fa-solid fa-chevron-up" style="margin-right:0.5rem; font-size:0.9rem;"></i>
           `;
         }
       } else {
         const homeItems = allItems.filter(item => item.showInHome !== false);
-        itemsToDisplay = homeItems.length > 0 ? homeItems.slice(0, 8) : allItems.slice(0, 8);
+        itemsToDisplay = homeItems.length > 0 ? homeItems : allItems;
         if (showingInfo) {
-          showingInfo.innerHTML = `يتم عرض <strong>${itemsToDisplay.length}</strong> نماذج مختارة من أصل <strong>${allItems.length}</strong> تصميم`;
+          showingInfo.innerHTML = `يتم عرض <strong>آخر الأعمال</strong> المضافة للصفحة الرئيسية (${itemsToDisplay.length} تصميم)`;
         }
         if (btnViewAll) {
           btnViewAll.style.display = 'inline-flex';
           btnViewAll.innerHTML = `
-            <i class="fa-solid fa-layer-group"></i> عرض جميع التصاميم بالكامل (${allItems.length} تصميم)
+            <i class="fa-solid fa-layer-group"></i> تصفح جميع التصاميم من كافة الأقسام (${allItems.length} تصميم)
             <i class="fa-solid fa-chevron-down" style="margin-right:0.5rem; font-size:0.9rem;"></i>
           `;
         }

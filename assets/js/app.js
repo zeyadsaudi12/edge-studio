@@ -1216,6 +1216,34 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   /* ==========================================================================
+     7. متابعة التمرير وتحديث النافبار الثابت (ScrollSpy for Fixed Navbar)
+     ========================================================================== */
+  const spySections = document.querySelectorAll('section[id]');
+  const spyNavLinks = document.querySelectorAll('.nav-menu .nav-link');
+
+  window.addEventListener('scroll', () => {
+    let currentId = '';
+    const scrollPos = window.pageYOffset + 120;
+
+    spySections.forEach(section => {
+      const top = section.offsetTop;
+      const height = section.offsetHeight;
+      if (scrollPos >= top && scrollPos < top + height) {
+        currentId = section.getAttribute('id');
+      }
+    });
+
+    if (currentId) {
+      spyNavLinks.forEach(link => {
+        link.classList.remove('active');
+        if (link.getAttribute('href') === `#${currentId}`) {
+          link.classList.add('active');
+        }
+      });
+    }
+  }, { passive: true });
+
+  /* ==========================================================================
      البدء والتشغيل الأولي
      ========================================================================== */
   renderPortfolio('all');

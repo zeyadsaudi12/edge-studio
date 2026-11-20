@@ -500,6 +500,7 @@
                 <div class="form-group">
                   <label class="form-label">ملف الكتاب PDF *</label>
                   <input type="file" id="book-pdf-file" class="form-input" accept="application/pdf" required>
+                  <small style="display:block; color:var(--text-muted); margin-top:0.45rem;">الملفات الأكبر من 9 MB سيتم ضغطها تلقائيًا قبل الرفع. قد يتحول محتوى الصفحات إلى صور غير قابلة لتحديد النص.</small>
                 </div>
               </div>
               <div id="book-upload-status" style="display:none; margin-top:1rem; color:var(--edge-cyan-glow);"></div>
@@ -840,6 +841,8 @@
   <!-- Scripts -->
   <script src="assets/data/portfolio.js"></script>
   <script src="assets/data/pricing.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
   <script src="assets/js/admin.js"></script>
 </body>
 </html>

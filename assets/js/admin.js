@@ -1708,8 +1708,88 @@ document.addEventListener('DOMContentLoaded', () => {
     const endpoint = `https://api.cloudinary.com/v1_1/${encodeURIComponent(signature.cloudName)}/${resourceType}/upload`;
     const response = await fetch(endpoint, { method: 'POST', body: formData });
     const data = await response.json();
-    if (!response.ok || !data.secure_url) throw new Error(data.error?.message || 'فشل رفع الملف.');
+    if (!response.ok || !data.secure_url) {
+      const uploadError = data.error?.message || '';
+      if (/too large|File size too large/i.test(uploadError)) {
+        throw new Error('ملف PDF أكبر من الحد المسموح به في Cloudinary. اضغط الملف أو قسمه إلى أجزاء أصغر من 10 MB.');
+      }
+      throw new Error(uploadError || 'فشل رفع الملف.');
+    }
     return data.secure_url;
+  }
+
+  async function compressBookPdf(file) {
+    if (!window.pdfjsLib || !window.jspdf?.jsPDF) {
+      throw new Error('أدوات ضغط PDF غير متاحة. حدّث الصفحة وحاول مرة أخرى.');
+    }
+
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
+    if (pdf.numPages > 250) {
+      throw new Error('الملف يحتوي على أكثر من 250 صفحة. قسمه إلى ملفات أصغر ثم ارفع كل جزء ككتاب مستقل.');
+    }
+
+    const targetSize = 9.5 * 1024 * 1024;
+    const compressionLevels = [
+      { scale: 1.35, quality: 0.72 },
+      { scale: 1.05, quality: 0.55 },
+      { scale: 0.82, quality: 0.4 }
+    ];
+
+    for (let levelIndex = 0; levelIndex < compressionLevels.length; levelIndex++) {
+      const level = compressionLevels[levelIndex];
+      bookStatus.textContent = `جاري ضغط الكتاب (${levelIndex + 1} من ${compressionLevels.length})...`;
+      let output = null;
+      let document = null;
+
+      for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
+        const page = await pdf.getPage(pageNumber);
+        const baseViewport = page.getViewport({ scale: 1 });
+        const scale = Math.min(level.scale, 1800 / Math.max(baseViewport.width, baseViewport.height));
+        const viewport = page.getViewport({ scale });
+        const canvas = window.document.createElement('canvas');
+        canvas.width = Math.max(1, Math.ceil(viewport.width));
+        canvas.height = Math.max(1, Math.ceil(viewport.height));
+        const context = canvas.getContext('2d', { alpha: false });
+        if (!context) throw new Error('تعذر تجهيز صفحات PDF للضغط.');
+
+        await page.render({ canvasContext: context, viewport }).promise;
+        const image = canvas.toDataURL('image/jpeg', level.quality);
+        const pageWidth = baseViewport.width * 0.75;
+        const pageHeight = baseViewport.height * 0.75;
+        const { jsPDF } = window.jspdf;
+
+        if (!document) {
+          document = new jsPDF({
+            orientation: pageWidth > pageHeight ? 'landscape' : 'portrait',
+            unit: 'pt',
+            format: [pageWidth, pageHeight],
+            compress: true
+          });
+        } else {
+          document.addPage([pageWidth, pageHeight], pageWidth > pageHeight ? 'landscape' : 'portrait');
+        }
+        document.addImage(image, 'JPEG', 0, 0, pageWidth, pageHeight, undefined, 'FAST');
+        canvas.width = 1;
+        canvas.height = 1;
+        page.cleanup();
+
+        if (pageNumber % 5 === 0 || pageNumber === pdf.numPages) {
+          bookStatus.textContent = `جاري ضغط الصفحة ${pageNumber} من ${pdf.numPages}...`;
+          await new Promise(resolve => setTimeout(resolve, 0));
+        }
+      }
+
+      output = document.output('blob');
+      if (output.size <= targetSize) {
+        return new File([output], file.name.replace(/\.pdf$/i, '') + '-compressed.pdf', {
+          type: 'application/pdf',
+          lastModified: Date.now()
+        });
+      }
+    }
+
+    throw new Error('لم يصل الملف إلى أقل من 9.5 MB بعد الضغط. قلل عدد الصفحات أو قسم الكتاب إلى ملفات أصغر.');
   }
 
   async function loadBooks() {
@@ -1763,10 +1843,17 @@ document.addEventListener('DOMContentLoaded', () => {
       submitButton.disabled = true;
       bookStatus.style.display = 'block';
       try {
+        let uploadPdf = pdfFile;
+        if (pdfFile.size > 9 * 1024 * 1024) {
+          const originalSize = pdfFile.size;
+          uploadPdf = await compressBookPdf(pdfFile);
+          const savedPercent = Math.round((1 - uploadPdf.size / originalSize) * 100);
+          bookStatus.textContent = `تم ضغط الملف من ${(originalSize / (1024 * 1024)).toFixed(1)} MB إلى ${(uploadPdf.size / (1024 * 1024)).toFixed(1)} MB (تقليل ${savedPercent}%).`;
+        }
         bookStatus.textContent = 'جاري رفع الغلاف...';
         const cover = await uploadBookFile(coverFile, 'image');
         bookStatus.textContent = 'جاري رفع ملف PDF...';
-        const pdfUrl = await uploadBookFile(pdfFile, 'raw');
+        const pdfUrl = await uploadBookFile(uploadPdf, 'raw');
         bookStatus.textContent = 'جاري حفظ بيانات الكتاب...';
         const response = await fetch('/api/books', {
           method: 'POST',

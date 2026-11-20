@@ -26,7 +26,15 @@ const BookSchema = new mongoose.Schema({
   },
   pdfUrl: {
     type: String,
-    required: true
+    default: ''
+  },
+  pdfParts: {
+    type: [String],
+    default: []
+  },
+  pdfPartPageCounts: {
+    type: [Number],
+    default: []
   },
   active: {
     type: Boolean,

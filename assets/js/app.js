@@ -1233,7 +1233,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const pageElement = document.getElementById('book-current-page');
   const pageInfo = document.getElementById('book-page-info');
   let currentPdf = null;
+  let currentPartIndex = -1;
   let currentPage = 1;
+  let totalPages = 0;
+  let readerParts = [];
+  let partPageCounts = [];
 
   async function loadBooks() {
     if (!grid) return;
@@ -1269,16 +1273,33 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function renderPage() {
-    if (!currentPdf || !canvas) return;
+    if (!canvas || totalPages === 0) return;
     if (loading) loading.style.display = 'grid';
     try {
-      const page = await currentPdf.getPage(currentPage);
+      let pageOffset = 0;
+      let targetPart = 0;
+      for (; targetPart < partPageCounts.length; targetPart++) {
+        if (currentPage <= pageOffset + partPageCounts[targetPart]) break;
+        pageOffset += partPageCounts[targetPart];
+      }
+
+      if (targetPart >= readerParts.length) throw new Error('Page is outside the book.');
+      if (currentPartIndex !== targetPart) {
+        if (currentPdf) await currentPdf.destroy();
+        currentPdf = await pdfjsLib.getDocument({
+          url: readerParts[targetPart],
+          withCredentials: false
+        }).promise;
+        currentPartIndex = targetPart;
+      }
+
+      const page = await currentPdf.getPage(currentPage - pageOffset);
       const viewport = page.getViewport({ scale: 1.45 });
       canvas.width = viewport.width;
       canvas.height = viewport.height;
       await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
       if (loading) loading.style.display = 'none';
-      if (pageInfo) pageInfo.textContent = `${currentPage} / ${currentPdf.numPages}`;
+      if (pageInfo) pageInfo.textContent = `${currentPage} / ${totalPages}`;
     } catch (error) {
       if (loading) loading.textContent = 'تعذر عرض هذه الصفحة.';
     }
@@ -1299,12 +1320,59 @@ document.addEventListener('DOMContentLoaded', () => {
       loading.textContent = 'جاري تجهيز الصفحات...';
     }
     try {
-      currentPdf = await pdfjsLib.getDocument({ url: book.readerUrl, withCredentials: false }).promise;
+      if (currentPdf) await currentPdf.destroy();
+      currentPdf = null;
+      currentPartIndex = -1;
+      readerParts = Array.isArray(book.readerParts) && book.readerParts.length > 0
+        ? book.readerParts
+        : [book.readerUrl];
+      const savedPageCounts = Array.isArray(book.readerPageCounts) ? book.readerPageCounts : [];
+      if (savedPageCounts.length === readerParts.length &&
+          savedPageCounts.every(count => Number.isInteger(count) && count > 0)) {
+        partPageCounts = savedPageCounts;
+        totalPages = partPageCounts.reduce((sum, count) => sum + count, 0);
+        currentPdf = await pdfjsLib.getDocument({
+          url: readerParts[0],
+          withCredentials: false
+        }).promise;
+        currentPartIndex = 0;
+        if (currentPdf.numPages !== partPageCounts[0]) {
+          partPageCounts[0] = currentPdf.numPages;
+          totalPages = partPageCounts.reduce((sum, count) => sum + count, 0);
+        }
+      } else {
+        partPageCounts = [];
+        totalPages = 0;
+        for (let index = 0; index < readerParts.length; index++) {
+          const partPdf = await pdfjsLib.getDocument({
+            url: readerParts[index],
+            withCredentials: false
+          }).promise;
+          partPageCounts.push(partPdf.numPages);
+          totalPages += partPdf.numPages;
+          if (index === 0) {
+            currentPdf = partPdf;
+            currentPartIndex = 0;
+          } else {
+            await partPdf.destroy();
+          }
+        }
+      }
       currentPage = 1;
       await renderPage();
     } catch (error) {
       if (loading) loading.textContent = 'تعذر فتح ملف الكتاب.';
     }
+  }
+
+  async function closeBookReader() {
+    modal.classList.remove('active');
+    modal.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+    if (currentPdf) await currentPdf.destroy();
+    currentPdf = null;
+    currentPartIndex = -1;
+    totalPages = 0;
   }
 
   grid?.addEventListener('click', (event) => {
@@ -1322,11 +1390,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   document.querySelectorAll('[data-close-book-reader]').forEach(button => {
-    button.addEventListener('click', () => {
-      modal.classList.remove('active');
-      modal.setAttribute('aria-hidden', 'true');
-      document.body.style.overflow = '';
-    });
+    button.addEventListener('click', closeBookReader);
   });
 
   document.getElementById('book-prev')?.addEventListener('click', async () => {
@@ -1339,7 +1403,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   document.getElementById('book-next')?.addEventListener('click', async () => {
-    if (!currentPdf || currentPage >= currentPdf.numPages) return;
+    if (!currentPdf || currentPage >= totalPages) return;
     pageElement.classList.remove('turn-prev');
     pageElement.classList.add('turn-next');
     setTimeout(() => pageElement.classList.remove('turn-next'), 350);
@@ -1350,9 +1414,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('keydown', event => {
     if (!modal?.classList.contains('active')) return;
     if (event.key === 'Escape') {
-      modal.classList.remove('active');
-      modal.setAttribute('aria-hidden', 'true');
-      document.body.style.overflow = '';
+      closeBookReader();
     }
   });
 

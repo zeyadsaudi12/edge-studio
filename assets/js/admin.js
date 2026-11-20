@@ -1718,78 +1718,99 @@ document.addEventListener('DOMContentLoaded', () => {
     return data.secure_url;
   }
 
-  async function compressBookPdf(file) {
+  async function splitAndCompressBookPdf(file) {
     if (!window.pdfjsLib || !window.jspdf?.jsPDF) {
-      throw new Error('أدوات ضغط PDF غير متاحة. حدّث الصفحة وحاول مرة أخرى.');
+      throw new Error('أدوات تجهيز PDF غير متاحة. حدّث الصفحة وحاول مرة أخرى.');
     }
 
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
     const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
-    if (pdf.numPages > 250) {
-      throw new Error('الملف يحتوي على أكثر من 250 صفحة. قسمه إلى ملفات أصغر ثم ارفع كل جزء ككتاب مستقل.');
+    if (pdf.numPages > 1000) {
+      throw new Error('الملف يحتوي على أكثر من 1000 صفحة. قسمه إلى عدة كتب أصغر ثم ارفعها.');
     }
 
-    const targetSize = 9.5 * 1024 * 1024;
+    const targetSize = 9 * 1024 * 1024;
     const compressionLevels = [
       { scale: 1.35, quality: 0.72 },
       { scale: 1.05, quality: 0.55 },
       { scale: 0.82, quality: 0.4 }
     ];
+    const partFiles = [];
+    let partNumber = 1;
 
-    for (let levelIndex = 0; levelIndex < compressionLevels.length; levelIndex++) {
-      const level = compressionLevels[levelIndex];
-      bookStatus.textContent = `جاري ضغط الكتاب (${levelIndex + 1} من ${compressionLevels.length})...`;
-      let output = null;
-      let document = null;
+    async function createPart(startPage, endPage) {
+      for (let levelIndex = 0; levelIndex < compressionLevels.length; levelIndex++) {
+        const level = compressionLevels[levelIndex];
+        bookStatus.textContent = `جاري تجهيز الجزء ${partNumber}، الصفحات ${startPage}-${endPage} (ضغط ${levelIndex + 1}/${compressionLevels.length})...`;
+        let document = null;
 
-      for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
-        const page = await pdf.getPage(pageNumber);
-        const baseViewport = page.getViewport({ scale: 1 });
-        const scale = Math.min(level.scale, 1800 / Math.max(baseViewport.width, baseViewport.height));
-        const viewport = page.getViewport({ scale });
-        const canvas = window.document.createElement('canvas');
-        canvas.width = Math.max(1, Math.ceil(viewport.width));
-        canvas.height = Math.max(1, Math.ceil(viewport.height));
-        const context = canvas.getContext('2d', { alpha: false });
-        if (!context) throw new Error('تعذر تجهيز صفحات PDF للضغط.');
+        for (let pageNumber = startPage; pageNumber <= endPage; pageNumber++) {
+          const page = await pdf.getPage(pageNumber);
+          const baseViewport = page.getViewport({ scale: 1 });
+          const scale = Math.min(level.scale, 1800 / Math.max(baseViewport.width, baseViewport.height));
+          const viewport = page.getViewport({ scale });
+          const canvas = window.document.createElement('canvas');
+          canvas.width = Math.max(1, Math.ceil(viewport.width));
+          canvas.height = Math.max(1, Math.ceil(viewport.height));
+          const context = canvas.getContext('2d', { alpha: false });
+          if (!context) throw new Error('تعذر تجهيز صفحات PDF للضغط.');
 
-        await page.render({ canvasContext: context, viewport }).promise;
-        const image = canvas.toDataURL('image/jpeg', level.quality);
-        const pageWidth = baseViewport.width * 0.75;
-        const pageHeight = baseViewport.height * 0.75;
-        const { jsPDF } = window.jspdf;
+          context.fillStyle = '#fff';
+          context.fillRect(0, 0, canvas.width, canvas.height);
+          await page.render({ canvasContext: context, viewport }).promise;
+          const image = canvas.toDataURL('image/jpeg', level.quality);
+          const pageWidth = baseViewport.width * 0.75;
+          const pageHeight = baseViewport.height * 0.75;
+          const { jsPDF } = window.jspdf;
 
-        if (!document) {
-          document = new jsPDF({
-            orientation: pageWidth > pageHeight ? 'landscape' : 'portrait',
-            unit: 'pt',
-            format: [pageWidth, pageHeight],
-            compress: true
-          });
-        } else {
-          document.addPage([pageWidth, pageHeight], pageWidth > pageHeight ? 'landscape' : 'portrait');
+          if (!document) {
+            document = new jsPDF({
+              orientation: pageWidth > pageHeight ? 'landscape' : 'portrait',
+              unit: 'pt',
+              format: [pageWidth, pageHeight],
+              compress: true
+            });
+          } else {
+            document.addPage([pageWidth, pageHeight], pageWidth > pageHeight ? 'landscape' : 'portrait');
+          }
+          document.addImage(image, 'JPEG', 0, 0, pageWidth, pageHeight, undefined, 'FAST');
+          canvas.width = 1;
+          canvas.height = 1;
+          page.cleanup();
         }
-        document.addImage(image, 'JPEG', 0, 0, pageWidth, pageHeight, undefined, 'FAST');
-        canvas.width = 1;
-        canvas.height = 1;
-        page.cleanup();
 
-        if (pageNumber % 5 === 0 || pageNumber === pdf.numPages) {
-          bookStatus.textContent = `جاري ضغط الصفحة ${pageNumber} من ${pdf.numPages}...`;
+        const output = document.output('blob');
+        if (output.size <= targetSize) {
+          const part = {
+            file: new File(
+              [output],
+              file.name.replace(/\.pdf$/i, '') + `-part-${partNumber}.pdf`,
+              { type: 'application/pdf', lastModified: Date.now() }
+            ),
+            pageCount: endPage - startPage + 1
+          };
+          partNumber += 1;
           await new Promise(resolve => setTimeout(resolve, 0));
+          return [part];
         }
       }
 
-      output = document.output('blob');
-      if (output.size <= targetSize) {
-        return new File([output], file.name.replace(/\.pdf$/i, '') + '-compressed.pdf', {
-          type: 'application/pdf',
-          lastModified: Date.now()
-        });
+      if (startPage === endPage) {
+        throw new Error(`تعذر ضغط الصفحة ${startPage} لأقل من 9 MB.`);
       }
+
+      const midpoint = Math.floor((startPage + endPage) / 2);
+      const firstParts = await createPart(startPage, midpoint);
+      const secondParts = await createPart(midpoint + 1, endPage);
+      return firstParts.concat(secondParts);
     }
 
-    throw new Error('لم يصل الملف إلى أقل من 9.5 MB بعد الضغط. قلل عدد الصفحات أو قسم الكتاب إلى ملفات أصغر.');
+    for (let startPage = 1; startPage <= pdf.numPages; startPage += 20) {
+      const endPage = Math.min(startPage + 19, pdf.numPages);
+      partFiles.push(...await createPart(startPage, endPage));
+    }
+
+    return partFiles;
   }
 
   async function loadBooks() {
@@ -1843,17 +1864,21 @@ document.addEventListener('DOMContentLoaded', () => {
       submitButton.disabled = true;
       bookStatus.style.display = 'block';
       try {
-        let uploadPdf = pdfFile;
+        let pdfFiles = [pdfFile];
         if (pdfFile.size > 9 * 1024 * 1024) {
-          const originalSize = pdfFile.size;
-          uploadPdf = await compressBookPdf(pdfFile);
-          const savedPercent = Math.round((1 - uploadPdf.size / originalSize) * 100);
-          bookStatus.textContent = `تم ضغط الملف من ${(originalSize / (1024 * 1024)).toFixed(1)} MB إلى ${(uploadPdf.size / (1024 * 1024)).toFixed(1)} MB (تقليل ${savedPercent}%).`;
+          pdfFiles = await splitAndCompressBookPdf(pdfFile);
+          if (pdfFiles.length > 100) {
+            throw new Error('الكتاب يحتاج إلى أكثر من 100 جزء للرفع. قلل عدد الصفحات أو ارفع الكتاب على دفعات منفصلة.');
+          }
+          bookStatus.textContent = `تم تجهيز ${pdfFiles.length} جزءًا مضغوطًا، جاري رفعها...`;
         }
         bookStatus.textContent = 'جاري رفع الغلاف...';
         const cover = await uploadBookFile(coverFile, 'image');
-        bookStatus.textContent = 'جاري رفع ملف PDF...';
-        const pdfUrl = await uploadBookFile(uploadPdf, 'raw');
+        const pdfParts = [];
+        for (let index = 0; index < pdfFiles.length; index++) {
+          bookStatus.textContent = `جاري رفع الجزء ${index + 1} من ${pdfFiles.length}...`;
+          pdfParts.push(await uploadBookFile(pdfFiles[index].file || pdfFiles[index], 'raw'));
+        }
         bookStatus.textContent = 'جاري حفظ بيانات الكتاب...';
         const response = await fetch('/api/books', {
           method: 'POST',
@@ -1861,7 +1886,13 @@ document.addEventListener('DOMContentLoaded', () => {
             'Content-Type': 'application/json',
             'Authorization': 'Bearer ' + adminToken
           },
-          body: JSON.stringify({ title, author, description, cover, pdfUrl })
+          body: JSON.stringify(pdfFile.size > 9 * 1024 * 1024
+            ? {
+                title, author, description, cover,
+                pdfParts,
+                pdfPartPageCounts: pdfFiles.map(part => part.pageCount)
+              }
+            : { title, author, description, cover, pdfUrl: pdfParts[0] })
         });
         const data = await response.json();
         if (!response.ok || !data.success) throw new Error(data.message || 'تعذر حفظ الكتاب.');

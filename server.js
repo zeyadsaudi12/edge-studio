@@ -698,7 +698,11 @@ app.get('/api/books', async (req, res) => {
       author: book.author,
       description: book.description,
       cover: book.cover,
-      readerUrl: `/api/books/${encodeURIComponent(book.bookId || String(book._id))}/file`
+      readerUrl: `/api/books/${encodeURIComponent(book.bookId || String(book._id))}/file`,
+      readerParts: (book.pdfParts && book.pdfParts.length > 0)
+        ? book.pdfParts.map((_, index) => `/api/books/${encodeURIComponent(book.bookId || String(book._id))}/file/${index}`)
+        : [`/api/books/${encodeURIComponent(book.bookId || String(book._id))}/file`],
+      readerPageCounts: book.pdfPartPageCounts || []
     }));
     res.set('Cache-Control', 'public, max-age=30, stale-while-revalidate=60');
     res.json({ success: true, books: publicBooks });
@@ -707,14 +711,18 @@ app.get('/api/books', async (req, res) => {
   }
 });
 
-app.get('/api/books/:id/file', async (req, res) => {
+async function serveBookPdf(req, res, partIndex) {
   try {
     if (!isDbConnected) return res.status(503).json({ success: false, message: 'المكتبة غير متاحة حالياً.' });
     const book = await Book.findOne({
       $or: [{ bookId: req.params.id }, ...(mongoose.isValidObjectId(req.params.id) ? [{ _id: req.params.id }] : [])]
     });
     if (!book || !book.active) return res.status(404).json({ success: false, message: 'الكتاب غير موجود.' });
-    const pdfResponse = await fetch(book.pdfUrl);
+    const pdfUrls = book.pdfParts && book.pdfParts.length > 0 ? book.pdfParts : [book.pdfUrl];
+    if (!Number.isInteger(partIndex) || partIndex < 0 || partIndex >= pdfUrls.length || !pdfUrls[partIndex]) {
+      return res.status(404).json({ success: false, message: 'جزء الكتاب غير موجود.' });
+    }
+    const pdfResponse = await fetch(pdfUrls[partIndex]);
     if (!pdfResponse.ok) return res.status(502).json({ success: false, message: 'تعذر تحميل ملف الكتاب.' });
     res.set({
       'Content-Type': 'application/pdf',
@@ -727,14 +735,28 @@ app.get('/api/books/:id/file', async (req, res) => {
   } catch (err) {
     res.status(500).json({ success: false, message: 'تعذر عرض ملف الكتاب.' });
   }
+}
+
+app.get('/api/books/:id/file', (req, res) => serveBookPdf(req, res, 0));
+app.get('/api/books/:id/file/:part', (req, res) => {
+  const partIndex = /^\d+$/.test(req.params.part) ? Number(req.params.part) : -1;
+  return serveBookPdf(req, res, partIndex);
 });
 
 app.post('/api/books', requireAdmin, requireDatabase, async (req, res) => {
   try {
     const data = req.body || {};
+    const validPdfUrl = typeof data.pdfUrl === 'string' && /^https:\/\/[^\s]+\.pdf(?:\?[^\s]*)?$/i.test(data.pdfUrl);
+    const validPdfParts = Array.isArray(data.pdfParts) && data.pdfParts.length > 0 &&
+      data.pdfParts.length <= 100 &&
+      data.pdfParts.every(url => typeof url === 'string' && /^https:\/\/[^\s]+\.pdf(?:\?[^\s]*)?$/i.test(url));
+    const validPageCounts = validPdfParts && Array.isArray(data.pdfPartPageCounts) &&
+      data.pdfPartPageCounts.length === data.pdfParts.length &&
+      data.pdfPartPageCounts.every(count => Number.isInteger(count) && count > 0 && count <= 1000) &&
+      data.pdfPartPageCounts.reduce((sum, count) => sum + count, 0) <= 1000;
     if (!cleanText(data.title, 160) || !validImageReference(data.cover) ||
-        (typeof data.pdfUrl !== 'string' || !/^https:\/\/[^\s]+\.pdf(?:\?[^\s]*)?$/i.test(data.pdfUrl))) {
-      return res.status(400).json({ success: false, message: 'العنوان والغلاف ورابط PDF صالح مطلوبان.' });
+        (!validPdfUrl && !validPageCounts) || (validPdfParts && !validPageCounts)) {
+      return res.status(400).json({ success: false, message: 'العنوان والغلاف ورابط أو أجزاء PDF صالحة مطلوبة.' });
     }
     const book = await Book.create({
       bookId: `book-${Date.now()}-${crypto.randomBytes(3).toString('hex')}`,
@@ -742,7 +764,9 @@ app.post('/api/books', requireAdmin, requireDatabase, async (req, res) => {
       author: cleanText(data.author, 160),
       description: cleanText(data.description, 2000),
       cover: data.cover,
-      pdfUrl: data.pdfUrl,
+      pdfUrl: validPdfUrl ? data.pdfUrl : '',
+      pdfParts: validPdfParts ? data.pdfParts : [],
+      pdfPartPageCounts: validPageCounts ? data.pdfPartPageCounts : [],
       active: data.active !== false
     });
     res.status(201).json({ success: true, book });

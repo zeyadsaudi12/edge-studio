@@ -13,6 +13,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
   <script src="assets/js/site-ui.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 
   <!-- Custom Stylesheet -->
   <link rel="stylesheet" href="assets/css/style.css">
@@ -50,6 +51,7 @@
             <a href="/portfolio?cat=branding">هوية بصرية</a>
           </div>
         </details>
+        <a href="#books" class="nav-link">المكتبة</a>
         <a href="#pricing" class="nav-link">الأسعار</a>
         <details class="nav-dropdown">
           <summary class="nav-link">المزيد <i class="fa-solid fa-chevron-down" aria-hidden="true"></i></summary>
@@ -200,6 +202,47 @@
       </div>
     </div>
   </section>
+
+  <!-- مكتبة الكتب التفاعلية -->
+  <section class="books-section" id="books">
+    <div class="container">
+      <div class="section-header">
+        <div class="section-badge">
+          <i class="fa-solid fa-book-open"></i> مكتبة EDGE
+        </div>
+        <h2 class="section-title">تصفح الكتب بهدوء وراحة</h2>
+        <p class="section-subtitle">كتب مختارة يمكنك معاينتها صفحة بصفحة بتقليب أنيق ومريح</p>
+      </div>
+      <div class="books-grid" id="books-grid">
+        <div class="books-empty">جاري تحميل المكتبة...</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="book-reader-modal" id="book-reader-modal" aria-hidden="true">
+    <div class="book-reader-backdrop" data-close-book-reader></div>
+    <div class="book-reader-shell" role="dialog" aria-modal="true" aria-label="عارض الكتاب">
+      <button type="button" class="book-reader-close" data-close-book-reader aria-label="إغلاق">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+      <div class="book-reader-title" id="book-reader-title"></div>
+      <div class="book-stage" id="book-stage">
+        <div class="book-page book-page-right" id="book-current-page">
+          <canvas id="book-page-canvas"></canvas>
+          <div class="book-loading" id="book-loading">جاري تجهيز الصفحات...</div>
+        </div>
+      </div>
+      <div class="book-reader-controls">
+        <button type="button" class="book-nav-btn" id="book-prev" aria-label="الصفحة السابقة">
+          <i class="fa-solid fa-chevron-right"></i>
+        </button>
+        <span id="book-page-info">0 / 0</span>
+        <button type="button" class="book-nav-btn" id="book-next" aria-label="الصفحة التالية">
+          <i class="fa-solid fa-chevron-left"></i>
+        </button>
+      </div>
+    </div>
+  </div>
 
   <!-- 4. قسم قائمة الأسعار والخدمات المنفصلة (Pricing Guide) -->
   <section class="pricing-section" id="pricing">

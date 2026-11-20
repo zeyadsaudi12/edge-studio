@@ -24,6 +24,7 @@ const Order = require('./models/Order');
 const Project = require('./models/Project');
 const Package = require('./models/Package');
 const Setting = require('./models/Setting');
+const Book = require('./models/Book');
 const { requireAdmin } = require('./middleware/auth');
 
 const app = express();
@@ -660,6 +661,103 @@ app.delete('/api/projects/:id', requireAdmin, requireDatabase, async (req, res) 
     });
     if (!deleted) return res.status(404).json({ success: false, message: 'المشروع غير موجود.' });
     res.json({ success: true, message: 'تم حذف المشروع بنجاح.' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ==========================================================================
+   مسارات مكتبة الكتب (Protected PDF Viewer API)
+   ========================================================================== */
+app.post('/api/uploads/cloudinary-signature-book', requireAdmin, rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 30,
+  message: 'تجاوزت الحد المسموح لرفع ملفات الكتب. حاول لاحقاً.'
+}), (req, res) => {
+  const { CLOUDINARY_CLOUD_NAME: cloudName, CLOUDINARY_API_KEY: apiKey, CLOUDINARY_API_SECRET: apiSecret } = process.env;
+  if (!cloudName || !apiKey || !apiSecret) {
+    return res.status(503).json({ success: false, message: 'رفع الملفات السحابي غير مهيأ.' });
+  }
+  const timestamp = Math.floor(Date.now() / 1000);
+  const folder = 'edge-studio/books';
+  const signature = crypto
+    .createHash('sha1')
+    .update(`folder=${folder}&timestamp=${timestamp}${apiSecret}`)
+    .digest('hex');
+  res.json({ success: true, cloudName, apiKey, timestamp, folder, signature });
+});
+
+app.get('/api/books', async (req, res) => {
+  try {
+    if (!isDbConnected) return res.json({ success: true, books: [] });
+    const books = await Book.find({ active: true }).sort({ createdAt: -1 });
+    const publicBooks = books.map(book => ({
+      _id: book._id,
+      bookId: book.bookId,
+      title: book.title,
+      author: book.author,
+      description: book.description,
+      cover: book.cover,
+      readerUrl: `/api/books/${encodeURIComponent(book.bookId || String(book._id))}/file`
+    }));
+    res.set('Cache-Control', 'public, max-age=30, stale-while-revalidate=60');
+    res.json({ success: true, books: publicBooks });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+app.get('/api/books/:id/file', async (req, res) => {
+  try {
+    if (!isDbConnected) return res.status(503).json({ success: false, message: 'المكتبة غير متاحة حالياً.' });
+    const book = await Book.findOne({
+      $or: [{ bookId: req.params.id }, ...(mongoose.isValidObjectId(req.params.id) ? [{ _id: req.params.id }] : [])]
+    });
+    if (!book || !book.active) return res.status(404).json({ success: false, message: 'الكتاب غير موجود.' });
+    const pdfResponse = await fetch(book.pdfUrl);
+    if (!pdfResponse.ok) return res.status(502).json({ success: false, message: 'تعذر تحميل ملف الكتاب.' });
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': 'inline',
+      'Cache-Control': 'private, no-store',
+      'X-Content-Type-Options': 'nosniff'
+    });
+    const body = Buffer.from(await pdfResponse.arrayBuffer());
+    res.send(body);
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'تعذر عرض ملف الكتاب.' });
+  }
+});
+
+app.post('/api/books', requireAdmin, requireDatabase, async (req, res) => {
+  try {
+    const data = req.body || {};
+    if (!cleanText(data.title, 160) || !validImageReference(data.cover) ||
+        (typeof data.pdfUrl !== 'string' || !/^https:\/\/[^\s]+\.pdf(?:\?[^\s]*)?$/i.test(data.pdfUrl))) {
+      return res.status(400).json({ success: false, message: 'العنوان والغلاف ورابط PDF صالح مطلوبان.' });
+    }
+    const book = await Book.create({
+      bookId: `book-${Date.now()}-${crypto.randomBytes(3).toString('hex')}`,
+      title: cleanText(data.title, 160),
+      author: cleanText(data.author, 160),
+      description: cleanText(data.description, 2000),
+      cover: data.cover,
+      pdfUrl: data.pdfUrl,
+      active: data.active !== false
+    });
+    res.status(201).json({ success: true, book });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+app.delete('/api/books/:id', requireAdmin, requireDatabase, async (req, res) => {
+  try {
+    const deleted = await Book.findOneAndDelete({
+      $or: [{ bookId: req.params.id }, ...(mongoose.isValidObjectId(req.params.id) ? [{ _id: req.params.id }] : [])]
+    });
+    if (!deleted) return res.status(404).json({ success: false, message: 'الكتاب غير موجود.' });
+    res.json({ success: true, message: 'تم حذف الكتاب.' });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

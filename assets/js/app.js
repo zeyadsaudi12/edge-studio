@@ -1223,3 +1223,141 @@ document.addEventListener('DOMContentLoaded', () => {
   renderPricing();
   goToStep(1);
 });
+
+document.addEventListener('DOMContentLoaded', () => {
+  const grid = document.getElementById('books-grid');
+  const modal = document.getElementById('book-reader-modal');
+  const titleElement = document.getElementById('book-reader-title');
+  const canvas = document.getElementById('book-page-canvas');
+  const loading = document.getElementById('book-loading');
+  const pageElement = document.getElementById('book-current-page');
+  const pageInfo = document.getElementById('book-page-info');
+  let currentPdf = null;
+  let currentPage = 1;
+
+  async function loadBooks() {
+    if (!grid) return;
+    try {
+      const response = await fetch('/api/books');
+      const data = await response.json();
+      if (!response.ok || !data.success || !Array.isArray(data.books) || data.books.length === 0) {
+        grid.innerHTML = '<div class="books-empty">لا توجد كتب منشورة حالياً.</div>';
+        return;
+      }
+
+      grid.innerHTML = '';
+      data.books.forEach(book => {
+        const card = document.createElement('article');
+        card.className = 'book-card';
+        card.innerHTML = `
+          <div class="book-cover-wrap" data-open-book="${encodeURIComponent(book._id)}" role="button" tabindex="0">
+            <img src="${String(book.cover).replace(/"/g, '&quot;')}" alt="${String(book.title).replace(/"/g, '&quot;')}">
+          </div>
+          <div class="book-card-body">
+            <h3>${String(book.title).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]))}</h3>
+            <p>${String(book.description || book.author || '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]))}</p>
+            <button type="button" class="btn btn-primary btn-sm" data-open-book="${encodeURIComponent(book._id)}">
+              <i class="fa-solid fa-book-open-reader"></i> تصفح الكتاب
+            </button>
+          </div>`;
+        card.dataset.bookJson = JSON.stringify(book);
+        grid.appendChild(card);
+      });
+    } catch (error) {
+      grid.innerHTML = '<div class="books-empty">تعذر تحميل المكتبة حالياً.</div>';
+    }
+  }
+
+  async function renderPage() {
+    if (!currentPdf || !canvas) return;
+    if (loading) loading.style.display = 'grid';
+    try {
+      const page = await currentPdf.getPage(currentPage);
+      const viewport = page.getViewport({ scale: 1.45 });
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+      if (loading) loading.style.display = 'none';
+      if (pageInfo) pageInfo.textContent = `${currentPage} / ${currentPdf.numPages}`;
+    } catch (error) {
+      if (loading) loading.textContent = 'تعذر عرض هذه الصفحة.';
+    }
+  }
+
+  async function openBook(book) {
+    if (!window.pdfjsLib) {
+      alert('عارض الكتب غير متاح حالياً.');
+      return;
+    }
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    titleElement.textContent = book.title;
+    modal.classList.add('active');
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+    if (loading) {
+      loading.style.display = 'grid';
+      loading.textContent = 'جاري تجهيز الصفحات...';
+    }
+    try {
+      currentPdf = await pdfjsLib.getDocument({ url: book.readerUrl, withCredentials: false }).promise;
+      currentPage = 1;
+      await renderPage();
+    } catch (error) {
+      if (loading) loading.textContent = 'تعذر فتح ملف الكتاب.';
+    }
+  }
+
+  grid?.addEventListener('click', (event) => {
+    const trigger = event.target.closest('[data-open-book]');
+    if (!trigger) return;
+    const card = trigger.closest('.book-card');
+    if (card?.dataset.bookJson) openBook(JSON.parse(card.dataset.bookJson));
+  });
+
+  grid?.addEventListener('keydown', (event) => {
+    if ((event.key === 'Enter' || event.key === ' ') && event.target.matches('[data-open-book]')) {
+      event.preventDefault();
+      event.target.click();
+    }
+  });
+
+  document.querySelectorAll('[data-close-book-reader]').forEach(button => {
+    button.addEventListener('click', () => {
+      modal.classList.remove('active');
+      modal.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+    });
+  });
+
+  document.getElementById('book-prev')?.addEventListener('click', async () => {
+    if (!currentPdf || currentPage <= 1) return;
+    pageElement.classList.remove('turn-next');
+    pageElement.classList.add('turn-prev');
+    setTimeout(() => pageElement.classList.remove('turn-prev'), 350);
+    currentPage -= 1;
+    await renderPage();
+  });
+
+  document.getElementById('book-next')?.addEventListener('click', async () => {
+    if (!currentPdf || currentPage >= currentPdf.numPages) return;
+    pageElement.classList.remove('turn-prev');
+    pageElement.classList.add('turn-next');
+    setTimeout(() => pageElement.classList.remove('turn-next'), 350);
+    currentPage += 1;
+    await renderPage();
+  });
+
+  document.addEventListener('keydown', event => {
+    if (!modal?.classList.contains('active')) return;
+    if (event.key === 'Escape') {
+      modal.classList.remove('active');
+      modal.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+    }
+  });
+
+  document.querySelector('.book-reader-modal')?.addEventListener('contextmenu', event => event.preventDefault());
+  document.querySelector('.book-reader-modal')?.addEventListener('dragstart', event => event.preventDefault());
+
+  loadBooks();
+});

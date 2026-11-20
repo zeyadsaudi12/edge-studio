@@ -1679,6 +1679,132 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   /* ==========================================================================
+     8. مكتبة الكتب التفاعلية (Books Management)
+     ========================================================================== */
+  const bookForm = document.getElementById('add-book-form');
+  const bookStatus = document.getElementById('book-upload-status');
+  const booksGrid = document.getElementById('admin-books-grid');
+  let adminBooksCache = [];
+
+  async function getBookSignature() {
+    const response = await fetch('/api/uploads/cloudinary-signature-book', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + adminToken }
+    });
+    const data = await response.json();
+    if (!response.ok || !data.success) throw new Error(data.message || 'تعذر إعداد رفع الكتاب.');
+    return data;
+  }
+
+  async function uploadBookFile(file, resourceType) {
+    const signature = await getBookSignature();
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('api_key', signature.apiKey);
+    formData.append('timestamp', signature.timestamp);
+    formData.append('folder', signature.folder);
+    formData.append('signature', signature.signature);
+
+    const endpoint = `https://api.cloudinary.com/v1_1/${encodeURIComponent(signature.cloudName)}/${resourceType}/upload`;
+    const response = await fetch(endpoint, { method: 'POST', body: formData });
+    const data = await response.json();
+    if (!response.ok || !data.secure_url) throw new Error(data.error?.message || 'فشل رفع الملف.');
+    return data.secure_url;
+  }
+
+  async function loadBooks() {
+    try {
+      const response = await fetch('/api/books');
+      const data = await response.json();
+      adminBooksCache = data.success && Array.isArray(data.books) ? data.books : [];
+    } catch (e) {
+      adminBooksCache = [];
+    }
+
+    if (!booksGrid) return;
+    booksGrid.innerHTML = '';
+    if (adminBooksCache.length === 0) {
+      booksGrid.innerHTML = '<p style="color:var(--text-muted);">لا توجد كتب منشورة حالياً.</p>';
+      return;
+    }
+    adminBooksCache.forEach(book => {
+      const card = document.createElement('article');
+      card.className = 'admin-project-card';
+      card.innerHTML = `
+        <img src="${book.cover}" alt="${book.title}" style="width:100%; aspect-ratio:3/4; object-fit:cover;">
+        <div style="padding:1rem;">
+          <h4>${book.title}</h4>
+          <p style="color:var(--text-muted);">${book.author || ''}</p>
+          <button class="btn btn-danger btn-sm" data-delete-book="${book.bookId || book._id}">
+            <i class="fa-solid fa-trash"></i> حذف
+          </button>
+        </div>`;
+      booksGrid.appendChild(card);
+    });
+  }
+
+  if (bookForm) {
+    bookForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const title = document.getElementById('book-title').value.trim();
+      const author = document.getElementById('book-author').value.trim();
+      const description = document.getElementById('book-description').value.trim();
+      const coverFile = document.getElementById('book-cover-file').files?.[0];
+      const pdfFile = document.getElementById('book-pdf-file').files?.[0];
+      if (!title || !coverFile || !pdfFile) {
+        alert('أدخل عنوان الكتاب واختر الغلاف وملف PDF.');
+        return;
+      }
+      if (pdfFile.type !== 'application/pdf' && !pdfFile.name.toLowerCase().endsWith('.pdf')) {
+        alert('الملف المطلوب بصيغة PDF فقط.');
+        return;
+      }
+      const submitButton = document.getElementById('btn-submit-book');
+      submitButton.disabled = true;
+      bookStatus.style.display = 'block';
+      try {
+        bookStatus.textContent = 'جاري رفع الغلاف...';
+        const cover = await uploadBookFile(coverFile, 'image');
+        bookStatus.textContent = 'جاري رفع ملف PDF...';
+        const pdfUrl = await uploadBookFile(pdfFile, 'raw');
+        bookStatus.textContent = 'جاري حفظ بيانات الكتاب...';
+        const response = await fetch('/api/books', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + adminToken
+          },
+          body: JSON.stringify({ title, author, description, cover, pdfUrl })
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) throw new Error(data.message || 'تعذر حفظ الكتاب.');
+        bookForm.reset();
+        bookStatus.textContent = 'تم نشر الكتاب بنجاح.';
+        await loadBooks();
+      } catch (error) {
+        bookStatus.textContent = error.message || 'تعذر رفع الكتاب.';
+      } finally {
+        submitButton.disabled = false;
+      }
+    });
+  }
+
+  booksGrid?.addEventListener('click', async (e) => {
+    const button = e.target.closest('[data-delete-book]');
+    if (!button || !confirm('هل تريد حذف هذا الكتاب؟')) return;
+    const response = await fetch(`/api/books/${encodeURIComponent(button.dataset.deleteBook)}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': 'Bearer ' + adminToken }
+    });
+    const data = await response.json();
+    if (!response.ok || !data.success) {
+      alert(data.message || 'تعذر حذف الكتاب.');
+      return;
+    }
+    await loadBooks();
+  });
+
+  /* ==========================================================================
      8. تصدير البيانات والتقارير (Export Data)
      ========================================================================== */
   const btnExportOrders = document.getElementById('btn-export-orders-csv');
@@ -1722,5 +1848,6 @@ document.addEventListener('DOMContentLoaded', () => {
   renderOrdersTable();
   updateStatistics();
   loadAndRenderPackages();
+  loadBooks();
 });
 

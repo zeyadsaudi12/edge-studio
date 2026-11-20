@@ -2904,3 +2904,220 @@ html[data-theme="dark"] .site-navbar + main:not(.login-page-main) {
   }
 }
 
+.books-section {
+  padding: 5rem 0;
+  background: linear-gradient(180deg, transparent, rgba(10, 88, 202, 0.045), transparent);
+}
+
+.books-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 260px));
+  justify-content: center;
+  gap: 1.5rem;
+}
+
+.books-empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  color: var(--text-muted);
+  padding: 3rem;
+}
+
+.book-card {
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-card);
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.12);
+  transition: transform 0.35s ease, box-shadow 0.35s ease;
+}
+
+.book-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 24px 55px rgba(10, 88, 202, 0.18);
+}
+
+.book-cover-wrap {
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  background: #dfe7f2;
+  cursor: pointer;
+  position: relative;
+}
+
+.book-cover-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.6s ease;
+  pointer-events: none;
+  user-select: none;
+}
+
+.book-card:hover .book-cover-wrap img {
+  transform: scale(1.035);
+}
+
+.book-card-body {
+  padding: 1.1rem;
+}
+
+.book-card-body h3 {
+  margin: 0 0 0.35rem;
+  font-size: 1.05rem;
+}
+
+.book-card-body p {
+  min-height: 2.7em;
+  color: var(--text-muted);
+  font-size: 0.86rem;
+  margin: 0 0 0.9rem;
+}
+
+.book-reader-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  visibility: hidden;
+  transition: 0.25s ease;
+}
+
+.book-reader-modal.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.book-reader-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(2, 8, 23, 0.88);
+  backdrop-filter: blur(12px);
+}
+
+.book-reader-shell {
+  position: relative;
+  z-index: 1;
+  width: min(92vw, 680px);
+  max-height: 92vh;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 22px;
+  background: #101827;
+  box-shadow: 0 30px 100px rgba(0, 0, 0, 0.55);
+  padding: 1rem;
+  perspective: 1800px;
+}
+
+.book-reader-close {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.75rem;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  cursor: pointer;
+  z-index: 3;
+}
+
+.book-reader-title {
+  min-height: 42px;
+  padding: 0.45rem 3.2rem;
+  text-align: center;
+  color: #fff;
+  font-weight: 800;
+}
+
+.book-stage {
+  display: grid;
+  place-items: center;
+  min-height: 480px;
+  max-height: 70vh;
+  overflow: hidden;
+}
+
+.book-page {
+  width: min(74vw, 430px);
+  max-height: 68vh;
+  aspect-ratio: 0.707;
+  background: #fff;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.38);
+  transform-origin: right center;
+  transition: transform 0.65s cubic-bezier(.2,.75,.25,1), opacity 0.25s ease;
+  overflow: hidden;
+  position: relative;
+}
+
+.book-page.turn-next {
+  transform: rotateY(-24deg) scale(.98);
+  opacity: 0.72;
+}
+
+.book-page.turn-prev {
+  transform-origin: left center;
+  transform: rotateY(24deg) scale(.98);
+  opacity: 0.72;
+}
+
+.book-page canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  user-select: none;
+  pointer-events: none;
+}
+
+.book-loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #475569;
+  background: #fff;
+}
+
+.book-reader-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.2rem;
+  color: #fff;
+  padding-top: 0.8rem;
+}
+
+.book-nav-btn {
+  width: 42px;
+  height: 42px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  cursor: pointer;
+}
+
+@media (max-width: 768px) {
+  .books-section {
+    padding: 3.5rem 0;
+  }
+
+  .books-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .book-reader-shell {
+    width: 94vw;
+  }
+
+  .book-stage {
+    min-height: 56vh;
+  }
+
+  .book-page {
+    width: min(82vw, 430px);
+  }
+}
+

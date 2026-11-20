@@ -1301,7 +1301,8 @@ document.addEventListener('DOMContentLoaded', () => {
       if (loading) loading.style.display = 'none';
       if (pageInfo) pageInfo.textContent = `${currentPage} / ${totalPages}`;
     } catch (error) {
-      if (loading) loading.textContent = 'تعذر عرض هذه الصفحة.';
+      console.error('تعذر عرض صفحة من الكتاب:', error);
+      if (loading) loading.textContent = `تعذر عرض الصفحة: ${error.message || 'خطأ غير معروف'}`;
     }
   }
 
@@ -1361,7 +1362,8 @@ document.addEventListener('DOMContentLoaded', () => {
       currentPage = 1;
       await renderPage();
     } catch (error) {
-      if (loading) loading.textContent = 'تعذر فتح ملف الكتاب.';
+      console.error('تعذر فتح الكتاب:', error);
+      if (loading) loading.textContent = `تعذر فتح الكتاب: ${error.message || 'خطأ غير معروف'}`;
     }
   }
 

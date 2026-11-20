@@ -9,6 +9,7 @@ const mongoose = require('mongoose');
 const path = require('path');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
+const { Readable } = require('stream');
 
 const isProduction = process.env.NODE_ENV === 'production' || Boolean(process.env.VERCEL);
 if (!process.env.JWT_SECRET) {
@@ -722,18 +723,34 @@ async function serveBookPdf(req, res, partIndex) {
     if (!Number.isInteger(partIndex) || partIndex < 0 || partIndex >= pdfUrls.length || !pdfUrls[partIndex]) {
       return res.status(404).json({ success: false, message: 'جزء الكتاب غير موجود.' });
     }
-    const pdfResponse = await fetch(pdfUrls[partIndex]);
-    if (!pdfResponse.ok) return res.status(502).json({ success: false, message: 'تعذر تحميل ملف الكتاب.' });
-    res.set({
+    const requestHeaders = {};
+    if (req.headers.range) requestHeaders.Range = req.headers.range;
+    const pdfResponse = await fetch(pdfUrls[partIndex], { headers: requestHeaders });
+    if (!pdfResponse.ok && pdfResponse.status !== 206) {
+      console.error(`تعذر جلب جزء PDF (${pdfResponse.status}) للكتاب ${req.params.id}.`);
+      return res.status(502).json({ success: false, message: 'تعذر تحميل ملف الكتاب من التخزين السحابي.' });
+    }
+
+    const responseHeaders = {
       'Content-Type': 'application/pdf',
       'Content-Disposition': 'inline',
       'Cache-Control': 'private, no-store',
       'X-Content-Type-Options': 'nosniff'
-    });
-    const body = Buffer.from(await pdfResponse.arrayBuffer());
-    res.send(body);
+    };
+    const acceptRanges = pdfResponse.headers.get('accept-ranges');
+    const contentLength = pdfResponse.headers.get('content-length');
+    const contentRange = pdfResponse.headers.get('content-range');
+    if (acceptRanges) responseHeaders['Accept-Ranges'] = acceptRanges;
+    if (contentLength) responseHeaders['Content-Length'] = contentLength;
+    if (contentRange) responseHeaders['Content-Range'] = contentRange;
+
+    res.status(pdfResponse.status).set(responseHeaders);
+    if (!pdfResponse.body) return res.end();
+    Readable.fromWeb(pdfResponse.body).pipe(res);
   } catch (err) {
-    res.status(500).json({ success: false, message: 'تعذر عرض ملف الكتاب.' });
+    console.error(`خطأ أثناء عرض جزء PDF للكتاب ${req.params.id}:`, err.message);
+    if (!res.headersSent) res.status(500).json({ success: false, message: 'تعذر عرض ملف الكتاب.' });
+    else res.destroy(err);
   }
 }
 

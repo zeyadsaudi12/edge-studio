@@ -10,6 +10,7 @@ const path = require('path');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const { Readable } = require('stream');
+const cloudinary = require('cloudinary').v2;
 
 const isProduction = process.env.NODE_ENV === 'production' || Boolean(process.env.VERCEL);
 if (!process.env.JWT_SECRET) {
@@ -210,6 +211,34 @@ function validImageReference(value) {
   if (typeof value !== 'string') return false;
   if (/^https:\/\/[^\s]+$/i.test(value)) return true;
   return /^\/?assets\/[a-zA-Z0-9._/-]+$/.test(value) && !value.split('/').includes('..');
+}
+
+function createCloudinaryPdfDownloadUrl(assetUrl) {
+  const { CLOUDINARY_CLOUD_NAME: cloudName, CLOUDINARY_API_KEY: apiKey, CLOUDINARY_API_SECRET: apiSecret } = process.env;
+  if (!cloudName || !apiKey || !apiSecret) {
+    throw new Error('إعدادات Cloudinary غير مكتملة لعرض ملفات PDF.');
+  }
+
+  const parsedUrl = new URL(assetUrl);
+  const assetPrefix = `/${cloudName}/raw/upload/`;
+  if (parsedUrl.protocol !== 'https:' || parsedUrl.hostname !== 'res.cloudinary.com' ||
+      !parsedUrl.pathname.startsWith(assetPrefix)) {
+    throw new Error('رابط PDF المخزن لا ينتمي إلى حساب Cloudinary المتوقع.');
+  }
+
+  const pathParts = parsedUrl.pathname.slice(assetPrefix.length).split('/');
+  if (/^v\d+$/.test(pathParts[0])) pathParts.shift();
+  const publicId = decodeURIComponent(pathParts.join('/'));
+  if (!publicId.toLowerCase().endsWith('.pdf')) {
+    throw new Error('ملف الكتاب المخزن ليس بصيغة PDF صالحة.');
+  }
+
+  cloudinary.config({ cloud_name: cloudName, api_key: apiKey, api_secret: apiSecret, secure: true });
+  return cloudinary.utils.private_download_url(publicId, 'pdf', {
+    resource_type: 'raw',
+    type: 'upload',
+    expires_at: Math.floor(Date.now() / 1000) + 300
+  });
 }
 
 /* ==========================================================================
@@ -723,9 +752,10 @@ async function serveBookPdf(req, res, partIndex) {
     if (!Number.isInteger(partIndex) || partIndex < 0 || partIndex >= pdfUrls.length || !pdfUrls[partIndex]) {
       return res.status(404).json({ success: false, message: 'جزء الكتاب غير موجود.' });
     }
+    const signedDownloadUrl = createCloudinaryPdfDownloadUrl(pdfUrls[partIndex]);
     const requestHeaders = {};
     if (req.headers.range) requestHeaders.Range = req.headers.range;
-    const pdfResponse = await fetch(pdfUrls[partIndex], { headers: requestHeaders });
+    const pdfResponse = await fetch(signedDownloadUrl, { headers: requestHeaders });
     if (!pdfResponse.ok && pdfResponse.status !== 206) {
       console.error(`تعذر جلب جزء PDF (${pdfResponse.status}) للكتاب ${req.params.id}.`);
       return res.status(502).json({ success: false, message: 'تعذر تحميل ملف الكتاب من التخزين السحابي.' });

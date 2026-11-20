@@ -1,10 +1,11 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="ar" dir="rtl" data-theme="light">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>لوحة تحكم الإدارة | EDGE Studio Dashboard</title>
   <link rel="icon" type="image/png" href="assets/img/logo-blue.png">
+  <script src="assets/js/site-ui.js"></script>
   
   <!-- FontAwesome Icons CDN -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -30,7 +31,8 @@
     <aside class="admin-sidebar" id="admin-sidebar">
       <div class="sidebar-header">
         <a href="/" class="sidebar-brand">
-          <img src="assets/img/logo-white.png" alt="EDGE Studio Logo">
+          <img src="assets/img/logo-white.png" alt="EDGE Studio Logo"
+               data-theme-logo-light="assets/img/logo-blue.png" data-theme-logo-dark="assets/img/logo-white.png">
         </a>
         <span class="sidebar-badge">لوحة الإدارة</span>
       </div>
@@ -106,6 +108,9 @@
         </div>
 
         <div class="topbar-right">
+          <button type="button" class="theme-toggle-btn" data-theme-toggle
+                  aria-label="التبديل إلى الوضع الداكن" aria-pressed="false"></button>
+
           <!-- شارة حالة اتصال MongoDB -->
           <span id="db-status-badge" class="badge-status pending" style="font-size:0.78rem;">
             <i class="fa-solid fa-database"></i> فحص MongoDB...
@@ -150,7 +155,7 @@
             <div class="stat-card">
               <div class="stat-info">
                 <span class="stat-title">قيد المراجعة</span>
-                <span class="stat-value" id="stat-pending-orders" style="color:#FBBF24;">0</span>
+                <span class="stat-value" id="stat-pending-orders">0</span>
               </div>
               <div class="stat-icon yellow">
                 <i class="fa-solid fa-hourglass-half"></i>
@@ -160,7 +165,7 @@
             <div class="stat-card">
               <div class="stat-info">
                 <span class="stat-title">قيد التنفيذ والعمل</span>
-                <span class="stat-value" id="stat-progress-orders" style="color:#60A5FA;">0</span>
+                <span class="stat-value" id="stat-progress-orders">0</span>
               </div>
               <div class="stat-icon blue">
                 <i class="fa-solid fa-wand-magic-sparkles"></i>
@@ -170,7 +175,7 @@
             <div class="stat-card">
               <div class="stat-info">
                 <span class="stat-title">طلبات مكتملة ومسلّمة</span>
-                <span class="stat-value" id="stat-completed-orders" style="color:#34D399;">0</span>
+                <span class="stat-value" id="stat-completed-orders">0</span>
               </div>
               <div class="stat-icon green">
                 <i class="fa-solid fa-circle-check"></i>
@@ -180,7 +185,7 @@
             <div class="stat-card">
               <div class="stat-info">
                 <span class="stat-title">طلبات ملغية</span>
-                <span class="stat-value" id="stat-cancelled-orders" style="color:#F87171;">0</span>
+                <span class="stat-value" id="stat-cancelled-orders">0</span>
               </div>
               <div class="stat-icon red">
                 <i class="fa-solid fa-ban"></i>

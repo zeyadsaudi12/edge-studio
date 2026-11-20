@@ -6,22 +6,38 @@
 @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=Alexandria:wght@400;500;600;700;800&display=swap');
 
 :root {
-  --edge-blue-primary: #0A58CA;
-  --edge-blue-vibrant: #0056F6;
-  --edge-blue-dark: #061B40;
-  --edge-cyan-glow: #22D3EE;
-  
-  --bg-dashboard: #040914;
-  --bg-sidebar: #070F20;
-  --bg-card: rgba(11, 23, 49, 0.85);
-  --bg-card-hover: rgba(18, 38, 78, 0.95);
-  --border-subtle: rgba(132, 172, 223, 0.15);
-  --border-active: rgba(0, 86, 246, 0.6);
+  --edge-blue-primary: #174EA6;
+  --edge-blue-vibrant: #1D5FE9;
+  --edge-blue-dark: #102A56;
+  --edge-cyan-glow: #168BB2;
 
-  --text-main: #F8FAFC;
-  --text-muted: #94A3B8;
-  --text-dim: #64748B;
-  --text-accent: #38BDF8;
+  --bg-dashboard: #F5F7FB;
+  --bg-sidebar: #FFFFFF;
+  --bg-card: #FFFFFF;
+  --bg-card-hover: #F7FAFF;
+  --bg-topbar: rgba(255, 255, 255, 0.94);
+  --bg-input: #FFFFFF;
+  --bg-table-head: #EFF3F9;
+  --border-subtle: #E3E9F2;
+  --border-active: rgba(29, 95, 233, 0.42);
+
+  --text-main: #17243A;
+  --text-muted: #637189;
+  --text-dim: #8290A5;
+  --text-accent: #1D5FE9;
+  --status-pending-text: #8A5200;
+  --status-progress-text: #1D4ED8;
+  --status-completed-text: #047857;
+  --status-cancelled-text: #B91C1C;
+  --pay-unpaid-text: #B91C1C;
+  --pay-deposit-text: #8A5200;
+  --pay-full-text: #047857;
+  --button-danger-bg: rgba(239, 68, 68, 0.1);
+  --button-danger-border: rgba(239, 68, 68, 0.25);
+  --button-danger-text: #B91C1C;
+  --button-success-bg: rgba(16, 185, 129, 0.1);
+  --button-success-border: rgba(16, 185, 129, 0.25);
+  --button-success-text: #047857;
 
   /* ألوان حالات الطلبات والدفع */
   --status-pending: #F59E0B;
@@ -41,6 +57,44 @@
   --radius-lg: 20px;
   --radius-full: 9999px;
   --transition: 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+html {
+  color-scheme: light;
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --edge-blue-primary: #0A58CA;
+  --edge-blue-vibrant: #0056F6;
+  --edge-blue-dark: #061B40;
+  --edge-cyan-glow: #22D3EE;
+  --bg-dashboard: #040914;
+  --bg-sidebar: #070F20;
+  --bg-card: rgba(11, 23, 49, 0.85);
+  --bg-card-hover: rgba(18, 38, 78, 0.95);
+  --bg-topbar: rgba(7, 15, 32, 0.85);
+  --bg-input: rgba(4, 9, 20, 0.8);
+  --bg-table-head: rgba(7, 15, 32, 0.9);
+  --border-subtle: rgba(132, 172, 223, 0.15);
+  --border-active: rgba(0, 86, 246, 0.6);
+  --text-main: #F8FAFC;
+  --text-muted: #94A3B8;
+  --text-dim: #64748B;
+  --text-accent: #38BDF8;
+  --status-pending-text: #FBBF24;
+  --status-progress-text: #60A5FA;
+  --status-completed-text: #34D399;
+  --status-cancelled-text: #F87171;
+  --pay-unpaid-text: #FCA5A5;
+  --pay-deposit-text: #FCD34D;
+  --pay-full-text: #6EE7B7;
+  --button-danger-bg: rgba(239, 68, 68, 0.15);
+  --button-danger-border: rgba(239, 68, 68, 0.3);
+  --button-danger-text: #F87171;
+  --button-success-bg: rgba(16, 185, 129, 0.15);
+  --button-success-border: rgba(16, 185, 129, 0.3);
+  --button-success-text: #34D399;
 }
 
 *, *::before, *::after {
@@ -148,14 +202,14 @@ body {
 }
 
 .sidebar-link:hover {
-  color: #FFFFFF;
-  background: rgba(10, 88, 202, 0.12);
-  border-color: rgba(10, 88, 202, 0.3);
+  color: var(--text-main);
+  background: rgba(29, 95, 233, 0.08);
+  border-color: var(--border-active);
 }
 
 .sidebar-link.active {
-  color: #FFFFFF;
-  background: linear-gradient(90deg, rgba(0, 86, 246, 0.25), rgba(10, 88, 202, 0.1));
+  color: var(--text-main);
+  background: linear-gradient(90deg, rgba(29, 95, 233, 0.14), rgba(29, 95, 233, 0.05));
   border-color: var(--edge-blue-vibrant);
 }
 
@@ -190,7 +244,7 @@ body {
 /* الشريط العلوي (Topbar) */
 .admin-topbar {
   height: 75px;
-  background: rgba(7, 15, 32, 0.85);
+  background: var(--bg-topbar);
   backdrop-filter: blur(16px);
   border-bottom: 1px solid var(--border-subtle);
   padding: 0 2rem;
@@ -255,13 +309,34 @@ body {
 .btn-outline:hover {
   background: rgba(10, 88, 202, 0.25);
   border-color: var(--border-active);
-  color: #FFFFFF;
+  color: var(--text-main);
+}
+
+.theme-toggle-btn {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  background: var(--bg-card);
+  color: var(--text-main);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.theme-toggle-btn:hover {
+  border-color: var(--border-active);
+  color: var(--edge-blue-vibrant);
 }
 
 .btn-danger {
-  background: rgba(239, 68, 68, 0.15);
-  border-color: rgba(239, 68, 68, 0.3);
-  color: #F87171;
+  background: var(--button-danger-bg);
+  border-color: var(--button-danger-border);
+  color: var(--button-danger-text);
 }
 
 .btn-danger:hover {
@@ -270,9 +345,9 @@ body {
 }
 
 .btn-success {
-  background: rgba(16, 185, 129, 0.15);
-  border-color: rgba(16, 185, 129, 0.3);
-  color: #34D399;
+  background: var(--button-success-bg);
+  border-color: var(--button-success-border);
+  color: var(--button-success-text);
 }
 
 .btn-success:hover {
@@ -348,7 +423,23 @@ body {
   font-family: var(--font-heading);
   font-size: 2rem;
   font-weight: 800;
-  color: #FFFFFF;
+  color: var(--text-main);
+}
+
+#stat-pending-orders {
+  color: var(--status-pending-text) !important;
+}
+
+#stat-progress-orders {
+  color: var(--status-progress-text) !important;
+}
+
+#stat-completed-orders {
+  color: var(--status-completed-text) !important;
+}
+
+#stat-cancelled-orders {
+  color: var(--status-cancelled-text) !important;
 }
 
 .stat-icon {
@@ -416,10 +507,10 @@ body {
 .search-input {
   width: 100%;
   padding: 0.65rem 2.6rem 0.65rem 1rem;
-  background: rgba(4, 9, 20, 0.8);
+  background: var(--bg-input);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
-  color: #FFFFFF;
+  color: var(--text-main);
   font-family: var(--font-body);
   font-size: 0.9rem;
 }
@@ -437,7 +528,7 @@ body {
 }
 
 .select-filter {
-  background: rgba(4, 9, 20, 0.8);
+  background: var(--bg-input);
   border: 1px solid var(--border-subtle);
   color: var(--text-main);
   padding: 0.65rem 1rem;
@@ -467,7 +558,7 @@ body {
 }
 
 .data-table th {
-  background: rgba(7, 15, 32, 0.9);
+  background: var(--bg-table-head);
   padding: 1rem 1.2rem;
   color: var(--text-muted);
   font-weight: 600;
@@ -482,7 +573,7 @@ body {
 }
 
 .data-table tbody tr:hover {
-  background: rgba(18, 38, 78, 0.4);
+  background: var(--bg-card-hover);
 }
 
 /* شارات الحالة (Status Badges) */
@@ -499,25 +590,25 @@ body {
 
 .badge-status.pending {
   background: rgba(245, 158, 11, 0.15);
-  color: #FBBF24;
+  color: var(--status-pending-text);
   border: 1px solid rgba(245, 158, 11, 0.4);
 }
 
 .badge-status.in_progress {
   background: rgba(59, 130, 246, 0.15);
-  color: #60A5FA;
+  color: var(--status-progress-text);
   border: 1px solid rgba(59, 130, 246, 0.4);
 }
 
 .badge-status.completed {
   background: rgba(16, 185, 129, 0.15);
-  color: #34D399;
+  color: var(--status-completed-text);
   border: 1px solid rgba(16, 185, 129, 0.4);
 }
 
 .badge-status.cancelled {
   background: rgba(239, 68, 68, 0.15);
-  color: #F87171;
+  color: var(--status-cancelled-text);
   border: 1px solid rgba(239, 68, 68, 0.4);
 }
 
@@ -534,19 +625,19 @@ body {
 
 .badge-pay.unpaid {
   background: rgba(239, 68, 68, 0.12);
-  color: #FCA5A5;
+  color: var(--pay-unpaid-text);
   border: 1px solid rgba(239, 68, 68, 0.3);
 }
 
 .badge-pay.deposit_paid {
   background: rgba(245, 158, 11, 0.12);
-  color: #FCD34D;
+  color: var(--pay-deposit-text);
   border: 1px solid rgba(245, 158, 11, 0.3);
 }
 
 .badge-pay.fully_paid {
   background: rgba(16, 185, 129, 0.12);
-  color: #6EE7B7;
+  color: var(--pay-full-text);
   border: 1px solid rgba(16, 185, 129, 0.3);
 }
 
@@ -572,7 +663,7 @@ body {
 }
 
 .admin-modal-box {
-  background: #0B1731;
+  background: var(--bg-card);
   border: 1px solid var(--border-active);
   border-radius: var(--radius-lg);
   max-width: 750px;
@@ -636,11 +727,11 @@ body {
 
 .form-input, .form-select, .form-textarea {
   width: 100%;
-  background: rgba(4, 9, 20, 0.8);
+  background: var(--bg-input);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
   padding: 0.75rem 1rem;
-  color: #FFFFFF;
+  color: var(--text-main);
   font-family: var(--font-body);
   font-size: 0.9rem;
 }
@@ -761,14 +852,14 @@ body {
 .package-card-title {
   font-size: 1.25rem;
   margin: 0 0 0.5rem 0;
-  color: #fff;
+  color: var(--text-main);
 }
 
 .package-card-price {
   font-family: var(--font-heading);
   font-size: 1.6rem;
   font-weight: 800;
-  color: #fff;
+  color: var(--text-main);
 }
 
 .package-card-price span {
@@ -926,6 +1017,10 @@ body {
   .topbar-right > * {
     font-size: 0.74rem;
     padding: 0.45rem 0.55rem;
+  }
+
+  .topbar-right > .theme-toggle-btn {
+    padding: 0;
   }
 
   .topbar-right #db-status-badge {

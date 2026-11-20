@@ -1189,95 +1189,10 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   /* ==========================================================================
-     5. تبديل الوضع الليلي / الفاتح (Dark / Light Theme Toggle)
-     ========================================================================== */
-  const themeToggleBtn = document.getElementById('theme-toggle-btn');
-  const navBrandLogo = document.querySelector('.brand-logo-img');
-  const currentTheme = localStorage.getItem('edge-theme-v2') || 'light';
-
-  function updateLogoForTheme(theme) {
-    if (!navBrandLogo) return;
-    if (theme === 'light') {
-      navBrandLogo.src = 'assets/img/logo-blue.png';
-    } else {
-      navBrandLogo.src = 'assets/img/logo-white.png';
-    }
-  }
-
-  if (currentTheme === 'light') {
-    document.documentElement.setAttribute('data-theme', 'light');
-    if (themeToggleBtn) themeToggleBtn.innerHTML = '<i class="fa-solid fa-sun"></i>';
-    updateLogoForTheme('light');
-  } else {
-    document.documentElement.setAttribute('data-theme', 'dark');
-    updateLogoForTheme('dark');
-  }
-
-  themeToggleBtn?.addEventListener('click', () => {
-    const isLight = document.documentElement.getAttribute('data-theme') === 'light';
-    if (isLight) {
-      document.documentElement.setAttribute('data-theme', 'dark');
-      localStorage.setItem('edge-theme-v2', 'dark');
-      themeToggleBtn.innerHTML = '<i class="fa-solid fa-moon"></i>';
-      updateLogoForTheme('dark');
-    } else {
-      document.documentElement.setAttribute('data-theme', 'light');
-      localStorage.setItem('edge-theme-v2', 'light');
-      themeToggleBtn.innerHTML = '<i class="fa-solid fa-sun"></i>';
-      updateLogoForTheme('light');
-    }
-  });
-
-  /* ==========================================================================
-     6. القائمة المتجاوبة للموبايل (Mobile Navigation)
-     ========================================================================== */
-  const mobileMenuBtn = document.getElementById('mobile-menu-btn');
-  const navMenu = document.getElementById('nav-menu');
-
-  function closeMobileNavigation() {
-    navMenu?.classList.remove('open');
-    navMenu?.querySelectorAll('.nav-dropdown[open]').forEach(dropdown => dropdown.removeAttribute('open'));
-    if (mobileMenuBtn) {
-      mobileMenuBtn.innerHTML = '<i class="fa-solid fa-bars"></i>';
-      mobileMenuBtn.setAttribute('aria-expanded', 'false');
-      mobileMenuBtn.setAttribute('aria-label', 'فتح القائمة');
-    }
-  }
-
-  mobileMenuBtn?.addEventListener('click', () => {
-    const isOpen = navMenu?.classList.toggle('open');
-    mobileMenuBtn.innerHTML = isOpen ? '<i class="fa-solid fa-xmark"></i>' : '<i class="fa-solid fa-bars"></i>';
-    mobileMenuBtn.setAttribute('aria-expanded', String(Boolean(isOpen)));
-    mobileMenuBtn.setAttribute('aria-label', isOpen ? 'إغلاق القائمة' : 'فتح القائمة');
-  });
-
-  // Close the mobile navigation after selecting any destination.
-  navMenu?.querySelectorAll('a').forEach(link => {
-    link.addEventListener('click', () => {
-      closeMobileNavigation();
-    });
-  });
-
-  document.addEventListener('keydown', event => {
-    if (event.key === 'Escape' && navMenu?.classList.contains('open')) {
-      closeMobileNavigation();
-      mobileMenuBtn?.focus();
-    }
-  });
-
-  document.addEventListener('click', event => {
-    if (navMenu?.classList.contains('open') &&
-        !navMenu.contains(event.target) &&
-        !event.composedPath().includes(mobileMenuBtn)) {
-      closeMobileNavigation();
-    }
-  });
-
-  /* ==========================================================================
-     7. متابعة التمرير وتحديث النافبار الثابت (ScrollSpy for Fixed Navbar)
+     5. متابعة التمرير وتحديث النافبار الثابت (ScrollSpy for Fixed Navbar)
      ========================================================================== */
   const spySections = document.querySelectorAll('section[id]');
-  const spyNavLinks = document.querySelectorAll('.nav-menu .nav-link');
+  const spyNavLinks = document.querySelectorAll('.nav-menu a.nav-link');
 
   window.addEventListener('scroll', () => {
     let currentId = '';
@@ -1294,7 +1209,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (currentId) {
       spyNavLinks.forEach(link => {
         link.classList.remove('active');
-        if (link.getAttribute('href') === `#${currentId}`) {
+        if (new URL(link.href, window.location.href).hash === `#${currentId}`) {
           link.classList.add('active');
         }
       });

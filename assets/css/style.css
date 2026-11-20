@@ -2629,8 +2629,8 @@ html[data-theme="dark"] .site-navbar {
   color: var(--text-main) !important;
 }
 
-.site-navbar + main {
-  padding: 4rem 0 5rem !important;
+.site-navbar + main:not(.login-page-main) {
+  padding: 5rem 0 5rem !important;
 }
 
 html[data-theme="dark"] .hero-section {
@@ -2715,7 +2715,7 @@ html[data-theme="dark"] .site-footer {
   background: #070D17;
 }
 
-html[data-theme="dark"] .site-navbar + main {
+html[data-theme="dark"] .site-navbar + main:not(.login-page-main) {
   background: var(--bg-main);
 }
 
@@ -2843,15 +2843,15 @@ html[data-theme="dark"] .site-navbar + main {
     padding-inline: 0.2rem;
   }
 
-  .site-navbar + main {
+  .site-navbar + main:not(.login-page-main) {
     padding: 2.5rem 0 3.5rem !important;
   }
 
-  .site-navbar + main .section-header {
+  .site-navbar + main:not(.login-page-main) .section-header {
     text-align: right;
   }
 
-  .site-navbar + main .portfolio-tabs {
+  .site-navbar + main:not(.login-page-main) .portfolio-tabs {
     flex-wrap: nowrap !important;
   }
 

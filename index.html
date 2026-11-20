@@ -12,6 +12,8 @@
   <!-- FontAwesome Icons CDN -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
+  <script src="assets/js/site-ui.js"></script>
+
   <!-- Custom Stylesheet -->
   <link rel="stylesheet" href="assets/css/style.css">
 </head>
@@ -27,11 +29,12 @@
   <!-- 1. شريط التنقل العلوي (Navbar) -->
   <header class="site-navbar">
     <div class="container nav-wrapper">
-      <a href="#" class="brand-logo-container" title="EDGE Studio">
-        <img src="assets/img/logo-blue.png" alt="EDGE Logo" class="brand-logo-img" id="nav-brand-logo">
+      <a href="#hero" class="brand-logo-container" title="EDGE Studio">
+        <img src="assets/img/logo-blue.png" alt="EDGE Logo" class="brand-logo-img" id="nav-brand-logo"
+             data-theme-logo-light="assets/img/logo-blue.png" data-theme-logo-dark="assets/img/logo-white.png">
       </a>
 
-      <nav class="nav-menu" id="nav-menu">
+      <nav class="nav-menu" id="nav-menu" aria-label="التنقل الرئيسي">
         <a href="#hero" class="nav-link active">الرئيسية</a>
         <details class="nav-dropdown nav-work-dropdown">
           <summary class="nav-link">الأعمال <i class="fa-solid fa-chevron-down" aria-hidden="true"></i></summary>
@@ -59,7 +62,8 @@
 
       <div class="nav-actions">
         <!-- زر تبديل الوضع الليلي والنهاري -->
-        <button class="theme-toggle-btn" id="theme-toggle-btn" title="تبديل المظهر (Dark / Light)">
+        <button type="button" class="theme-toggle-btn" id="theme-toggle-btn" data-theme-toggle
+                aria-label="التبديل إلى الوضع الداكن" aria-pressed="false">
           <i class="fa-solid fa-moon"></i>
         </button>
 

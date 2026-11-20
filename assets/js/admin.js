@@ -1711,11 +1711,36 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!response.ok || !data.secure_url) {
       const uploadError = data.error?.message || '';
       if (/too large|File size too large/i.test(uploadError)) {
-        throw new Error('ملف PDF أكبر من الحد المسموح به في Cloudinary. اضغط الملف أو قسمه إلى أجزاء أصغر من 10 MB.');
+        const fileLabel = resourceType === 'image' ? 'غلاف الكتاب' : 'جزء PDF';
+        throw new Error(`حجم ${fileLabel} (${(file.size / (1024 * 1024)).toFixed(1)} MB) تجاوز حد Cloudinary. تم إيقاف الرفع.`);
       }
       throw new Error(uploadError || 'فشل رفع الملف.');
     }
     return data.secure_url;
+  }
+
+  async function prepareBookCover(file) {
+    const targetSize = 9 * 1024 * 1024;
+    if (file.size <= targetSize) return file;
+
+    const levels = [
+      { width: 1600, quality: 0.82 },
+      { width: 1200, quality: 0.68 },
+      { width: 900, quality: 0.52 }
+    ];
+    for (const level of levels) {
+      bookStatus.textContent = 'غلاف الكتاب كبير؛ جاري ضغطه قبل الرفع...';
+      const blob = await compressImage(file, level.width, level.quality);
+      if (blob.size <= targetSize) {
+        return new File(
+          [blob],
+          file.name.replace(/\.[^.]+$/, '') + '-compressed.jpg',
+          { type: 'image/jpeg', lastModified: Date.now() }
+        );
+      }
+    }
+
+    throw new Error('تعذر ضغط غلاف الكتاب إلى أقل من 9 MB. اختر صورة أصغر.');
   }
 
   async function splitAndCompressBookPdf(file) {
@@ -1872,8 +1897,9 @@ document.addEventListener('DOMContentLoaded', () => {
           }
           bookStatus.textContent = `تم تجهيز ${pdfFiles.length} جزءًا مضغوطًا، جاري رفعها...`;
         }
+        const preparedCover = await prepareBookCover(coverFile);
         bookStatus.textContent = 'جاري رفع الغلاف...';
-        const cover = await uploadBookFile(coverFile, 'image');
+        const cover = await uploadBookFile(preparedCover, 'image');
         const pdfParts = [];
         for (let index = 0; index < pdfFiles.length; index++) {
           bookStatus.textContent = `جاري رفع الجزء ${index + 1} من ${pdfFiles.length}...`;

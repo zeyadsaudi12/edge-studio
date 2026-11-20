@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="ar" dir="rtl" data-theme="light">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -22,13 +22,10 @@
   <header class="site-navbar">
     <div class="container nav-wrapper">
       <a href="/" class="brand-logo-container" title="EDGE Studio">
-        <img src="assets/img/logo-white.png" alt="EDGE Logo" class="brand-logo-img">
+        <img src="assets/img/logo-blue.png" alt="EDGE Logo" class="brand-logo-img">
       </a>
 
       <div class="nav-actions">
-        <a href="/" class="btn btn-outline btn-sm">
-          <i class="fa-solid fa-house"></i> العودة للرئيسية
-        </a>
         <a href="/#order-wizard-section" class="btn btn-primary btn-sm">
           <i class="fa-solid fa-paper-plane"></i> اطلب تصميمك الآن
         </a>
@@ -122,10 +119,36 @@
       const projectModal = document.getElementById('project-modal');
       const modalCloseBtn = document.getElementById('modal-close-btn');
       const modalBody = document.getElementById('modal-dynamic-content');
+      const categories = ['all', 'posts', 'covers', 'frames', 'profiles', 'thum', 'certificates', 'social', 'print', 'branding'];
+
+      function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>"']/g, char => ({
+          '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        })[char]);
+      }
+
+      function safeImageSource(value) {
+        if (typeof value !== 'string') return '';
+        if (/^https:\/\/[^\s]+$/i.test(value) || (/^\/?assets\/[a-zA-Z0-9._/-]+$/.test(value) && !value.split('/').includes('..'))) {
+          return escapeHtml(value);
+        }
+        if (/^data:image\/(?:jpeg|png|webp);base64,[a-z0-9+/=]+$/i.test(value)) return escapeHtml(value);
+        return '';
+      }
+
+      if (grid) {
+        grid.innerHTML = Array.from({ length: 6 }, () => `
+          <div class="portfolio-skeleton" aria-hidden="true">
+            <div class="portfolio-skeleton-image"></div>
+            <div class="portfolio-skeleton-line"></div>
+            <div class="portfolio-skeleton-line short"></div>
+          </div>
+        `).join('');
+      }
 
       // قراءة الفلتر الافتراضي من رابط الصفحة (مثلاً: portfolio.html?cat=social)
       const urlParams = new URLSearchParams(window.location.search);
-      let currentFilter = urlParams.get('cat') || 'all';
+      let currentFilter = categories.includes(urlParams.get('cat')) ? urlParams.get('cat') : 'all';
 
       // جلب المشاريع من السيرفر أو الكاش المحلي
       let allProjects = [];
@@ -154,11 +177,12 @@
       } catch (e) {}
 
       if (allProjects.length === 0) {
-        const cached = JSON.parse(localStorage.getItem('edge_custom_projects') || '[]');
-        allProjects = cached.map(p => ({
-          ...p,
-          id: p.id || p.projectId || p._id
-        }));
+        try {
+          const cached = JSON.parse(localStorage.getItem('edge_custom_projects') || '[]');
+          allProjects = cached.map(p => ({ ...p, id: p.id || p.projectId || p._id }));
+        } catch (e) {
+          allProjects = [];
+        }
       }
 
       // تحديث أعداد الأزرار
@@ -188,28 +212,29 @@
           return;
         }
 
-        list.forEach(item => {
+        list.forEach((item, index) => {
           const card = document.createElement('div');
           card.className = 'portfolio-card';
+          card.style.animationDelay = `${Math.min(index, 8) * 45}ms`;
 
-          const tagsHtml = (item.tags || []).map(t => `<span class="tag-badge">#${t}</span>`).join(' ');
+          const tagsHtml = (item.tags || []).map(t => `<span class="tag-badge">#${escapeHtml(t)}</span>`).join(' ');
 
           card.innerHTML = `
             <div class="portfolio-thumb-wrap">
-              <img src="${item.image}" alt="${item.title}" class="portfolio-thumb" loading="lazy">
+              <img src="${safeImageSource(item.image)}" alt="${escapeHtml(item.title)}" class="portfolio-thumb" loading="lazy">
               <div class="portfolio-overlay">
-                <button class="overlay-btn view-project-btn" data-id="${item.projectId || item._id || item.id}">
+                <button class="overlay-btn view-project-btn" data-id="${escapeHtml(item.projectId || item._id || item.id)}">
                   <i class="fa-solid fa-expand"></i> معاينة التصميم
                 </button>
               </div>
             </div>
             <div class="portfolio-body">
               <div class="portfolio-meta">
-                <span class="portfolio-cat-tag">${item.categoryName || item.category}</span>
-                <span class="portfolio-year">${item.year || ''}</span>
+                <span class="portfolio-cat-tag">${escapeHtml(item.categoryName || item.category)}</span>
+                <span class="portfolio-year">${escapeHtml(item.year || '')}</span>
               </div>
-              <h3 class="portfolio-title">${item.title}</h3>
-              <p style="font-size:0.85rem; color:var(--text-accent); margin:0.3rem 0;"><i class="fa-solid fa-user-tie"></i> ${item.client || 'عميل EDGE'}</p>
+              <h3 class="portfolio-title">${escapeHtml(item.title)}</h3>
+              <p style="font-size:0.85rem; color:var(--text-accent); margin:0.3rem 0;"><i class="fa-solid fa-user-tie"></i> ${escapeHtml(item.client || 'عميل EDGE')}</p>
               <div class="portfolio-tags">${tagsHtml}</div>
             </div>
           `;
@@ -228,15 +253,15 @@
       function openModal(item) {
         modalBody.innerHTML = `
           <div class="modal-img-container">
-            <img src="${item.image}" alt="${item.title}">
+            <img src="${safeImageSource(item.image)}" alt="${escapeHtml(item.title)}">
           </div>
           <div class="modal-details-body">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.8rem;">
-              <span class="section-badge" style="font-size:0.8rem; padding:0.25rem 0.75rem;">${item.categoryName || item.category}</span>
-              <span style="color:var(--text-dim); font-size:0.85rem;"><i class="fa-regular fa-calendar"></i> سنة التنفيذ: ${item.year || ''}</span>
+              <span class="section-badge" style="font-size:0.8rem; padding:0.25rem 0.75rem;">${escapeHtml(item.categoryName || item.category)}</span>
+              <span style="color:var(--text-dim); font-size:0.85rem;"><i class="fa-regular fa-calendar"></i> سنة التنفيذ: ${escapeHtml(item.year || '')}</span>
             </div>
-            <h2 style="font-size:1.45rem; margin-bottom:0.4rem; color:#fff;">${item.title}</h2>
-            <p style="color:var(--text-accent); font-weight:600; font-size:0.95rem; margin-bottom:1rem;"><i class="fa-solid fa-user-tie"></i> العميل: ${item.client || 'عميل EDGE'}</p>
+            <h2 style="font-size:1.45rem; margin-bottom:0.4rem; color:#fff;">${escapeHtml(item.title)}</h2>
+            <p style="color:var(--text-accent); font-weight:600; font-size:0.95rem; margin-bottom:1rem;"><i class="fa-solid fa-user-tie"></i> العميل: ${escapeHtml(item.client || 'عميل EDGE')}</p>
             <div style="display:flex; gap:0.8rem; flex-wrap:wrap; margin-top:0.5rem;">
               <a href="/#order-wizard-section" class="btn btn-primary btn-sm" style="flex:1;">
                 <i class="fa-solid fa-paper-plane"></i> طلب تصميم مشابه
@@ -258,6 +283,9 @@
       }
 
       modalCloseBtn?.addEventListener('click', closeModal);
+      document.addEventListener('keydown', event => {
+        if (event.key === 'Escape') closeModal();
+      });
       projectModal?.addEventListener('click', (e) => {
         if (e.target === projectModal) closeModal();
       });
@@ -273,9 +301,20 @@
         tab.addEventListener('click', () => {
           tabs.forEach(t => t.classList.remove('active'));
           tab.classList.add('active');
-          const filter = tab.getAttribute('data-filter');
-          render(filter);
+          currentFilter = categories.includes(tab.getAttribute('data-filter')) ? tab.getAttribute('data-filter') : 'all';
+          const nextUrl = new URL(window.location.href);
+          if (currentFilter === 'all') nextUrl.searchParams.delete('cat');
+          else nextUrl.searchParams.set('cat', currentFilter);
+          history.replaceState(null, '', nextUrl);
+          render(currentFilter);
         });
+      });
+
+      window.addEventListener('popstate', () => {
+        const filter = new URLSearchParams(window.location.search).get('cat') || 'all';
+        currentFilter = categories.includes(filter) ? filter : 'all';
+        tabs.forEach(tab => tab.classList.toggle('active', tab.getAttribute('data-filter') === currentFilter));
+        render(currentFilter);
       });
 
       render(currentFilter);

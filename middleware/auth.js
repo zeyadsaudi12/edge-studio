@@ -1,6 +1,9 @@
 const jwt = require('jsonwebtoken');
+const JWT_SECRET = process.env.JWT_SECRET;
 
-const JWT_SECRET = process.env.JWT_SECRET || 'edge_studio_super_secret_jwt_token_2024_auth_key';
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET must be configured before loading authentication middleware.');
+}
 
 function requireAdmin(req, res, next) {
   try {
@@ -12,7 +15,7 @@ function requireAdmin(req, res, next) {
       });
     }
 
-    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : authHeader.trim();
 
     if (!token) {
       return res.status(401).json({

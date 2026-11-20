@@ -4,6 +4,25 @@
  */
 
 document.addEventListener('DOMContentLoaded', () => {
+  function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, char => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    })[char]);
+  }
+
+  function safeImageSource(value) {
+    if (typeof value !== 'string') return '';
+    if (/^https:\/\/[^\s]+$/i.test(value) || (/^\/?assets\/[a-zA-Z0-9._/-]+$/.test(value) && !value.split('/').includes('..'))) {
+      return escapeHtml(value);
+    }
+    if (/^data:image\/(?:jpeg|png|webp);base64,[a-z0-9+/=]+$/i.test(value)) return escapeHtml(value);
+    return '';
+  }
+
+  function safeColor(value) {
+    return /^#[0-9a-f]{6}$/i.test(value || '') ? value : '#0A58CA';
+  }
+
   // رقم الواتساب الخاص بالاستوديو لاستقبال الطلبات (يمكن تغييره بسهولة)
   const STUDIO_WHATSAPP_NUMBER = "201556448880"; // صيغة دولية بدون +
 
@@ -187,21 +206,22 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    itemsToDisplay.forEach((item) => {
+    itemsToDisplay.forEach((item, index) => {
       const card = document.createElement('div');
       card.className = 'portfolio-card';
+      card.style.animationDelay = `${Math.min(index, 8) * 45}ms`;
       card.setAttribute('data-category', item.category);
       card.style.cursor = 'pointer';
 
       const tagsHtml = item.tags
-        ? item.tags.map(tag => `<span class="tag-badge">#${tag}</span>`).join('')
+        ? item.tags.map(tag => `<span class="tag-badge">#${escapeHtml(tag)}</span>`).join('')
         : '';
 
       card.innerHTML = `
         <div class="portfolio-thumb-wrap">
-          <img src="${item.image}" alt="${item.title}" class="portfolio-thumb" loading="lazy">
+          <img src="${safeImageSource(item.image)}" alt="${escapeHtml(item.title)}" class="portfolio-thumb" loading="lazy">
           <div class="portfolio-overlay">
-            <button class="overlay-btn view-project-btn" data-id="${item.id}">
+            <button class="overlay-btn view-project-btn" data-id="${escapeHtml(item.id)}">
               <i class="fa-solid fa-expand"></i> معاينة وتفاصيل
             </button>
           </div>
@@ -211,11 +231,11 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
         <div class="portfolio-body">
           <div class="portfolio-meta">
-            <span class="portfolio-cat-tag">${item.categoryName}</span>
-            <span class="portfolio-year">${item.year}</span>
+            <span class="portfolio-cat-tag">${escapeHtml(item.categoryName)}</span>
+            <span class="portfolio-year">${escapeHtml(item.year)}</span>
           </div>
-          <h3 class="portfolio-title">${item.title}</h3>
-          ${item.description ? `<p class="portfolio-desc">${item.description}</p>` : ''}
+          <h3 class="portfolio-title">${escapeHtml(item.title)}</h3>
+          ${item.description ? `<p class="portfolio-desc">${escapeHtml(item.description)}</p>` : ''}
           <div class="portfolio-tags">
             ${tagsHtml}
           </div>
@@ -275,19 +295,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     modalBody.innerHTML = `
       <div class="modal-img-container">
-        <img src="${item.gallery ? item.gallery[0] : item.image}" alt="${item.title}">
+        <img src="${safeImageSource(item.gallery ? item.gallery[0] : item.image)}" alt="${escapeHtml(item.title)}">
       </div>
       <div class="modal-details-body">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.8rem;">
-          <span class="section-badge" style="font-size:0.8rem; padding:0.25rem 0.75rem;">${item.categoryName}</span>
-          <span style="color:var(--text-dim); font-size:0.85rem;"><i class="fa-regular fa-calendar"></i> سنة التنفيذ: ${item.year}</span>
+          <span class="section-badge" style="font-size:0.8rem; padding:0.25rem 0.75rem;">${escapeHtml(item.categoryName)}</span>
+          <span style="color:var(--text-dim); font-size:0.85rem;"><i class="fa-regular fa-calendar"></i> سنة التنفيذ: ${escapeHtml(item.year)}</span>
         </div>
-        <h2 style="font-size:1.45rem; margin-bottom:0.4rem; color:#fff;">${item.title}</h2>
-        <p style="color:var(--text-accent); font-weight:600; font-size:0.95rem; margin-bottom:1rem;"><i class="fa-solid fa-user-tie"></i> العميل: ${item.client}</p>
-        ${item.description ? `<p style="color:var(--text-muted); line-height:1.7; font-size:0.9rem; margin-bottom:1.2rem;">${item.description}</p>` : ''}
+        <h2 style="font-size:1.45rem; margin-bottom:0.4rem; color:var(--text-main);">${escapeHtml(item.title)}</h2>
+        <p style="color:var(--text-accent); font-weight:600; font-size:0.95rem; margin-bottom:1rem;"><i class="fa-solid fa-user-tie"></i> العميل: ${escapeHtml(item.client)}</p>
+        ${item.description ? `<p style="color:var(--text-muted); line-height:1.7; font-size:0.9rem; margin-bottom:1.2rem;">${escapeHtml(item.description)}</p>` : ''}
         
         <div style="display:flex; gap:0.8rem; flex-wrap:wrap; margin-top:0.5rem;">
-          <button class="btn btn-primary btn-sm" onclick="window.requestSpecificCategory('${item.category}', '${item.title}')" style="flex:1;">
+          <button class="btn btn-primary btn-sm" id="modal-request-action" style="flex:1;">
             <i class="fa-solid fa-paper-plane"></i> طلب تصميم مشابه
           </button>
           <button class="btn btn-outline btn-sm" id="modal-close-action">
@@ -301,6 +321,9 @@ document.addEventListener('DOMContentLoaded', () => {
     document.body.style.overflow = 'hidden';
 
     document.getElementById('modal-close-action')?.addEventListener('click', closePortfolioModal);
+    document.getElementById('modal-request-action')?.addEventListener('click', () => {
+      window.requestSpecificCategory(item.category, item.title);
+    });
   }
 
   function closePortfolioModal() {
@@ -387,7 +410,7 @@ document.addEventListener('DOMContentLoaded', () => {
       pricingContainer.innerHTML = `
         <div style="text-align:center; padding:3.5rem; background:var(--bg-card); border:1px dashed var(--border-subtle); border-radius:16px; color:var(--text-muted); max-width:650px; margin:0 auto;">
           <i class="fa-solid fa-box-open fa-3x" style="margin-bottom:1rem; opacity:0.5; color:var(--edge-cyan-glow); display:block;"></i>
-          <h3 style="color:#fff; margin-bottom:0.5rem;">جاري تحديث قائمة باقاتنا الجديدة</h3>
+          <h3 style="color:var(--text-main); margin-bottom:0.5rem;">جاري تحديث قائمة باقاتنا الجديدة</h3>
           <p style="font-size:0.95rem; margin-bottom:1.5rem;">يمكنك في الوقت الحالي التوجه مباشرة لنموذج الطلب وتحديد المواصفات التي ترغب بها وسنوافيك بالتسعير فوراً عبر الواتساب.</p>
           <a href="#order-wizard-section" class="btn btn-primary">
             <i class="fa-solid fa-paper-plane"></i> طلب تصميم مخصص الآن
@@ -405,25 +428,25 @@ document.addEventListener('DOMContentLoaded', () => {
       section.className = 'pricing-cat-wrapper';
 
       const cardsHtml = catPackages.map(pkg => {
-        const badgeHtml = pkg.badge ? `<div class="popular-badge">${pkg.badge}</div>` : '';
+        const badgeHtml = pkg.badge ? `<div class="popular-badge">${escapeHtml(pkg.badge)}</div>` : '';
         const featuresHtml = (pkg.features || []).map(f => `
           <div class="feature-item">
             <i class="fa-solid fa-circle-check feature-check"></i>
-            <span>${f}</span>
+            <span>${escapeHtml(f)}</span>
           </div>
         `).join('');
 
-        const pkgId = pkg._id || pkg.id;
+        const pkgId = escapeHtml(pkg._id || pkg.id);
 
         return `
           <div class="price-card ${pkg.popular ? 'popular' : ''}">
             ${badgeHtml}
-            <h4 class="price-card-title">${pkg.name}</h4>
-            <p class="price-card-desc">${pkg.description || ''}</p>
+            <h4 class="price-card-title">${escapeHtml(pkg.name)}</h4>
+            <p class="price-card-desc">${escapeHtml(pkg.description || '')}</p>
             <div class="price-value-box">
-              <span class="price-amount">${pkg.price}</span>
-              <span class="price-currency">${pkg.currency || 'ج.م'}</span>
-              <span class="price-period">/ ${pkg.period || 'للتصميم'}</span>
+              <span class="price-amount">${escapeHtml(pkg.price)}</span>
+              <span class="price-currency">${escapeHtml(pkg.currency || 'ج.م')}</span>
+              <span class="price-period">/ ${escapeHtml(pkg.period || 'للتصميم')}</span>
             </div>
             <div class="price-features-list">
               ${featuresHtml}
@@ -431,8 +454,8 @@ document.addEventListener('DOMContentLoaded', () => {
             <button class="btn ${pkg.popular ? 'btn-primary' : 'btn-outline'} btn-select-package" 
                     data-pkg-id="${pkgId}" 
                     data-cat-id="${cat.id}"
-                    data-pkg-name="${pkg.name}"
-                    data-pkg-price="${pkg.price}">
+                    data-pkg-name="${escapeHtml(pkg.name)}"
+                    data-pkg-price="${escapeHtml(pkg.price)}">
               <i class="fa-solid fa-cart-shopping"></i> اختر هذه الخدمة للطلب
             </button>
           </div>
@@ -881,8 +904,8 @@ document.addEventListener('DOMContentLoaded', () => {
       item.className = 'file-item-pill';
       item.innerHTML = `
         <span style="display:flex; align-items:center; gap:0.5rem;">
-          ${isImg ? `<img src="${fileItem.data}" style="width:24px; height:24px; object-fit:cover; border-radius:4px;" alt="معاينة">` : '<i class="fa-regular fa-file" style="color:var(--edge-cyan-glow);"></i>'}
-          ${fileName}
+          ${isImg ? `<img src="${safeImageSource(fileItem.data)}" style="width:24px; height:24px; object-fit:cover; border-radius:4px;" alt="معاينة">` : '<i class="fa-regular fa-file" style="color:var(--edge-cyan-glow);"></i>'}
+          ${escapeHtml(fileName)}
         </span>
         <button class="file-remove-btn" data-index="${index}" title="حذف الملف">
           <i class="fa-solid fa-trash-can"></i>
@@ -955,36 +978,36 @@ document.addEventListener('DOMContentLoaded', () => {
     for (const [key, val] of Object.entries(orderState.serviceDetails)) {
       detailsRowsHtml += `
         <div class="summary-row">
-          <span class="summary-key">${key}:</span>
-          <span class="summary-val">${val}</span>
+          <span class="summary-key">${escapeHtml(key)}:</span>
+          <span class="summary-val">${escapeHtml(val)}</span>
         </div>
       `;
     }
 
     const filesStr = orderState.uploadedFiles.length > 0
-      ? orderState.uploadedFiles.map(f => typeof f === 'string' ? f : f.name).join('، ')
+      ? orderState.uploadedFiles.map(f => escapeHtml(typeof f === 'string' ? f : f.name)).join('، ')
       : 'لم يتم إرفاق ملفات (سيتم إرسالها عبر الشات)';
 
     summaryContent.innerHTML = `
       <div class="summary-row">
         <span class="summary-key">الخدمة المختارة:</span>
-        <span class="summary-val" style="color:var(--edge-cyan-glow);">${orderState.selectedService?.name || 'خدمة تصميم'}</span>
+        <span class="summary-val" style="color:var(--edge-cyan-glow);">${escapeHtml(orderState.selectedService?.name || 'خدمة تصميم')}</span>
       </div>
       <div class="summary-row">
         <span class="summary-key">صاحب الطلب:</span>
-        <span class="summary-val">${orderState.contact.name} (${orderState.contact.phone})</span>
+        <span class="summary-val">${escapeHtml(orderState.contact.name)} (${escapeHtml(orderState.contact.phone)})</span>
       </div>
       <div class="summary-row">
         <span class="summary-key">اسم المشروع / البراند:</span>
-        <span class="summary-val">${orderState.contact.brandName || 'غير محدد'}</span>
+        <span class="summary-val">${escapeHtml(orderState.contact.brandName || 'غير محدد')}</span>
       </div>
       <div class="summary-row">
         <span class="summary-key">لوحة ألوان الهوية المختارة:</span>
         <span class="summary-val">
           <span style="display:inline-flex; align-items:center; gap:6px;">
-            <span style="display:inline-block; width:14px; height:14px; border-radius:50%; background:${orderState.colors.primary};"></span> ${orderState.colors.primary}
-            <span style="display:inline-block; width:14px; height:14px; border-radius:50%; background:${orderState.colors.secondary};"></span> ${orderState.colors.secondary}
-            <span style="display:inline-block; width:14px; height:14px; border-radius:50%; background:${orderState.colors.accent};"></span> ${orderState.colors.accent}
+            <span style="display:inline-block; width:14px; height:14px; border-radius:50%; background:${safeColor(orderState.colors.primary)};"></span> ${safeColor(orderState.colors.primary)}
+            <span style="display:inline-block; width:14px; height:14px; border-radius:50%; background:${safeColor(orderState.colors.secondary)};"></span> ${safeColor(orderState.colors.secondary)}
+            <span style="display:inline-block; width:14px; height:14px; border-radius:50%; background:${safeColor(orderState.colors.accent)};"></span> ${safeColor(orderState.colors.accent)}
           </span>
         </span>
       </div>
@@ -994,8 +1017,8 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>
       ${detailsRowsHtml}
       <div class="summary-row summary-total">
-        <span class="summary-key" style="font-weight:700; color:#fff;">السعر التقديري:</span>
-        <span class="summary-val">${orderState.selectedService?.price} ج.م</span>
+        <span class="summary-key" style="font-weight:700; color:var(--text-main);">السعر التقديري:</span>
+        <span class="summary-val">${escapeHtml(orderState.selectedService?.price)} ج.م</span>
       </div>
     `;
   }
@@ -1037,7 +1060,6 @@ document.addEventListener('DOMContentLoaded', () => {
   // حفظ الطلب في قاعدة بيانات MongoDB ونسخة احتياطية في localStorage
   async function saveOrderToStorage() {
     const newOrder = {
-      id: 'ORD-' + Math.floor(1000 + Math.random() * 9000),
       createdAt: new Date().toISOString(),
       dateFormatted: new Date().toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
       service: orderState.selectedService?.name || 'خدمة تصميم',
@@ -1055,7 +1077,19 @@ document.addEventListener('DOMContentLoaded', () => {
       paymentStatus: 'unpaid' // unpaid, deposit_paid, fully_paid
     };
 
-    // حفظ نسخة خفيفة في localStorage لتجنب تجاوز مساحة المتصفح (QuotaExceededError)
+    const res = await fetch('/api/orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newOrder)
+    });
+
+    const result = await res.json();
+    if (!res.ok || !result.success || !result.order) {
+      const errJson = result || {};
+      throw new Error(errJson.message || 'حدث خطأ في الخادم أثناء تسجيل الطلب');
+    }
+
+    newOrder.id = result.order.orderId;
     try {
       const lightOrder = {
         ...newOrder,
@@ -1069,19 +1103,7 @@ document.addEventListener('DOMContentLoaded', () => {
       orders.unshift(lightOrder);
       localStorage.setItem('edge_orders', JSON.stringify(orders.slice(0, 50)));
     } catch (e) {
-      console.warn('تجاوزت الطلبات مساحة localStorage، تم تجاوز التخزين المحلي والاعتماد على قاعدة البيانات.');
-    }
-
-    // إرسال كامل البيانات والملفات مباشرة إلى خادم وقاعدة بيانات MongoDB
-    const res = await fetch('/api/orders', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newOrder)
-    });
-
-    if (!res.ok) {
-      const errJson = await res.json().catch(() => ({}));
-      throw new Error(errJson.message || 'حدث خطأ في الخادم أثناء تسجيل الطلب');
+      console.warn('تعذر تحديث نسخة الطلب المحلية؛ تم حفظ الطلب في قاعدة البيانات.');
     }
 
     return newOrder;
@@ -1089,11 +1111,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // زر الإرسال عبر واتساب
   const btnSendWhatsApp = document.getElementById('btn-send-whatsapp');
-  btnSendWhatsApp?.addEventListener('click', () => {
-    saveOrderToStorage();
+  btnSendWhatsApp?.addEventListener('click', async () => {
+    const whatsappWindow = window.open('about:blank', '_blank');
+    try {
+      await saveOrderToStorage();
+    } catch (error) {
+      alert(error.message || 'تعذر حفظ الطلب في الموقع؛ يمكنك متابعة الإرسال عبر واتساب.');
+    }
     const encodedText = generateWhatsAppMessage();
     const waUrl = `https://wa.me/${STUDIO_WHATSAPP_NUMBER}?text=${encodedText}`;
-    window.open(waUrl, '_blank');
+    if (whatsappWindow) {
+      whatsappWindow.opener = null;
+      whatsappWindow.location.href = waUrl;
+    } else {
+      window.location.href = waUrl;
+    }
   });
 
   // زر التأكيد والإرسال المباشر للاستوديو (بدون واتساب)
@@ -1113,7 +1145,7 @@ document.addEventListener('DOMContentLoaded', () => {
         alertEl.style.borderRadius = '10px';
         alertEl.style.padding = '12px 16px';
         alertEl.style.marginTop = '12px';
-        alertEl.innerHTML = `<i class="fa-solid fa-circle-check"></i> تم إرسال طلبك رقم <strong>${order.id}</strong> بنجاح! سيتواصل معك فريق EDGE قريباً.`;
+        alertEl.innerHTML = `<i class="fa-solid fa-circle-check"></i> تم إرسال طلبك رقم <strong>${escapeHtml(order.id)}</strong> بنجاح! سيتواصل معك فريق EDGE قريباً.`;
       }
       btnSubmitOrderDirect.innerHTML = '<i class="fa-solid fa-check"></i> تم الإرسال بنجاح ✅';
     } catch (e) {
@@ -1160,8 +1192,8 @@ document.addEventListener('DOMContentLoaded', () => {
      5. تبديل الوضع الليلي / الفاتح (Dark / Light Theme Toggle)
      ========================================================================== */
   const themeToggleBtn = document.getElementById('theme-toggle-btn');
-  const navBrandLogo = document.getElementById('nav-brand-logo');
-  const currentTheme = localStorage.getItem('edge-theme') || 'dark';
+  const navBrandLogo = document.querySelector('.brand-logo-img');
+  const currentTheme = localStorage.getItem('edge-theme-v2') || 'light';
 
   function updateLogoForTheme(theme) {
     if (!navBrandLogo) return;
@@ -1177,19 +1209,20 @@ document.addEventListener('DOMContentLoaded', () => {
     if (themeToggleBtn) themeToggleBtn.innerHTML = '<i class="fa-solid fa-sun"></i>';
     updateLogoForTheme('light');
   } else {
+    document.documentElement.setAttribute('data-theme', 'dark');
     updateLogoForTheme('dark');
   }
 
   themeToggleBtn?.addEventListener('click', () => {
     const isLight = document.documentElement.getAttribute('data-theme') === 'light';
     if (isLight) {
-      document.documentElement.removeAttribute('data-theme');
-      localStorage.setItem('edge-theme', 'dark');
+      document.documentElement.setAttribute('data-theme', 'dark');
+      localStorage.setItem('edge-theme-v2', 'dark');
       themeToggleBtn.innerHTML = '<i class="fa-solid fa-moon"></i>';
       updateLogoForTheme('dark');
     } else {
       document.documentElement.setAttribute('data-theme', 'light');
-      localStorage.setItem('edge-theme', 'light');
+      localStorage.setItem('edge-theme-v2', 'light');
       themeToggleBtn.innerHTML = '<i class="fa-solid fa-sun"></i>';
       updateLogoForTheme('light');
     }
@@ -1201,18 +1234,43 @@ document.addEventListener('DOMContentLoaded', () => {
   const mobileMenuBtn = document.getElementById('mobile-menu-btn');
   const navMenu = document.getElementById('nav-menu');
 
+  function closeMobileNavigation() {
+    navMenu?.classList.remove('open');
+    navMenu?.querySelectorAll('.nav-dropdown[open]').forEach(dropdown => dropdown.removeAttribute('open'));
+    if (mobileMenuBtn) {
+      mobileMenuBtn.innerHTML = '<i class="fa-solid fa-bars"></i>';
+      mobileMenuBtn.setAttribute('aria-expanded', 'false');
+      mobileMenuBtn.setAttribute('aria-label', 'فتح القائمة');
+    }
+  }
+
   mobileMenuBtn?.addEventListener('click', () => {
-    navMenu?.classList.toggle('open');
-    const isOpen = navMenu?.classList.contains('open');
+    const isOpen = navMenu?.classList.toggle('open');
     mobileMenuBtn.innerHTML = isOpen ? '<i class="fa-solid fa-xmark"></i>' : '<i class="fa-solid fa-bars"></i>';
+    mobileMenuBtn.setAttribute('aria-expanded', String(Boolean(isOpen)));
+    mobileMenuBtn.setAttribute('aria-label', isOpen ? 'إغلاق القائمة' : 'فتح القائمة');
   });
 
-  // إغلاق القائمة عند النقر على رابط
-  document.querySelectorAll('.nav-link').forEach(link => {
+  // Close the mobile navigation after selecting any destination.
+  navMenu?.querySelectorAll('a').forEach(link => {
     link.addEventListener('click', () => {
-      navMenu?.classList.remove('open');
-      if (mobileMenuBtn) mobileMenuBtn.innerHTML = '<i class="fa-solid fa-bars"></i>';
+      closeMobileNavigation();
     });
+  });
+
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && navMenu?.classList.contains('open')) {
+      closeMobileNavigation();
+      mobileMenuBtn?.focus();
+    }
+  });
+
+  document.addEventListener('click', event => {
+    if (navMenu?.classList.contains('open') &&
+        !navMenu.contains(event.target) &&
+        !event.composedPath().includes(mobileMenuBtn)) {
+      closeMobileNavigation();
+    }
   });
 
   /* ==========================================================================

@@ -80,7 +80,7 @@
       border-radius: var(--radius-sm);
       color: #FFFFFF;
       font-family: var(--font-body);
-      font-size: 0.95rem;
+      font-size: 16px;
       transition: all var(--transition-fast);
     }
 
@@ -154,6 +154,15 @@
     .login-footer-links a:hover {
       color: var(--edge-cyan-glow);
     }
+
+    @keyframes login-shake {
+      20%, 60% { transform: translateX(7px); }
+      40%, 80% { transform: translateX(-7px); }
+    }
+
+    .login-card.shake {
+      animation: login-shake 0.35s ease-in-out;
+    }
   </style>
 </head>
 <body>
@@ -215,6 +224,20 @@
       const loginAlert = document.getElementById('login-alert');
       const submitBtn = document.getElementById('submit-login-btn');
 
+      function showError(message, invalidCredentials = false) {
+        loginAlert.className = 'login-alert error';
+        loginAlert.textContent = message;
+        loginAlert.style.display = 'block';
+        if (invalidCredentials) {
+          const card = document.querySelector('.login-card');
+          card.classList.remove('shake');
+          void card.offsetWidth;
+          card.classList.add('shake');
+        }
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fa-solid fa-shield-halved"></i> تسجيل الدخول بأمان';
+      }
+
       // إظهار وإخفاء كلمة المرور
       togglePasswordBtn?.addEventListener('click', () => {
         const isPassword = passwordInput.type === 'password';
@@ -228,9 +251,18 @@
         fetch('/api/auth/verify', {
           headers: { 'Authorization': 'Bearer ' + existingToken }
         })
-        .then(res => res.json())
+        .then(async res => {
+          if (res.status === 401 || res.status === 403) {
+            localStorage.removeItem('edge_admin_token');
+            localStorage.removeItem('edge_admin_user');
+            sessionStorage.removeItem('edge_admin_token');
+            sessionStorage.removeItem('edge_admin_user');
+            return null;
+          }
+          return res.ok ? res.json() : null;
+        })
         .then(data => {
-          if (data.success && data.valid) {
+          if (data?.success && data.valid) {
             window.location.href = 'admin';
           }
         })
@@ -261,15 +293,19 @@
 
           const data = await res.json();
 
-          if (data.success && data.token) {
+          if (res.ok && data.success && data.token) {
             loginAlert.className = 'login-alert success';
             loginAlert.textContent = 'تم تسجيل الدخول بنجاح! جاري تحويلك إلى لوحة التحكم...';
             loginAlert.style.display = 'block';
 
             if (rememberMe) {
+              sessionStorage.removeItem('edge_admin_token');
+              sessionStorage.removeItem('edge_admin_user');
               localStorage.setItem('edge_admin_token', data.token);
               localStorage.setItem('edge_admin_user', JSON.stringify(data.admin));
             } else {
+              localStorage.removeItem('edge_admin_token');
+              localStorage.removeItem('edge_admin_user');
               sessionStorage.setItem('edge_admin_token', data.token);
               sessionStorage.setItem('edge_admin_user', JSON.stringify(data.admin));
             }
@@ -278,31 +314,10 @@
               window.location.href = 'admin';
             }, 800);
           } else {
-            loginAlert.className = 'login-alert error';
-            loginAlert.textContent = data.message || 'بيانات الدخول غير صحيحة. يرجى المحاولة مجدداً.';
-            loginAlert.style.display = 'block';
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = '<i class="fa-solid fa-shield-halved"></i> تسجيل الدخول بأمان';
+            showError(data.message || 'تعذر تسجيل الدخول. يرجى المحاولة مجدداً.', res.status === 401);
           }
         } catch (err) {
-          // في حال كان الخادم غير شغال محلياً، التحقق من الحساب الافتراضي محلياً
-          if (username.toLowerCase() === 'admin' && (password === 'edge2024admin' || password === 'admin')) {
-            const mockToken = 'mock_jwt_token_' + Date.now();
-            localStorage.setItem('edge_admin_token', mockToken);
-            localStorage.setItem('edge_admin_user', JSON.stringify({ username: 'admin', name: 'مسؤول النظام' }));
-            loginAlert.className = 'login-alert success';
-            loginAlert.textContent = 'تم التحقق بنجاح! جاري التحويل...';
-            loginAlert.style.display = 'block';
-            setTimeout(() => {
-              window.location.href = 'admin';
-            }, 800);
-          } else {
-            loginAlert.className = 'login-alert error';
-            loginAlert.textContent = 'تعذر الاتصال بالخادم، تأكد من تشغيل الخادم Node.js وبيانات الدخول.';
-            loginAlert.style.display = 'block';
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = '<i class="fa-solid fa-shield-halved"></i> تسجيل الدخول بأمان';
-          }
+          showError('تعذر الاتصال بالخادم. تحقق من اتصالك وحاول مرة أخرى.');
         }
       });
     });

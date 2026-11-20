@@ -5,10 +5,27 @@
  */
 
 document.addEventListener('DOMContentLoaded', () => {
+  function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, char => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    })[char]);
+  }
+
+  function safeImageSource(value) {
+    if (typeof value !== 'string') return '';
+    if (/^https:\/\/[^\s]+$/i.test(value) || (/^\/?assets\/[a-zA-Z0-9._/-]+$/.test(value) && !value.split('/').includes('..'))) {
+      return escapeHtml(value);
+    }
+    if (/^data:image\/(?:jpeg|png|webp);base64,[a-z0-9+/=]+$/i.test(value)) return escapeHtml(value);
+    return '';
+  }
 
   // التحقق من صلاحية جلسة الأدمن
   const adminToken = localStorage.getItem('edge_admin_token') || sessionStorage.getItem('edge_admin_token');
-  const adminUser = JSON.parse(localStorage.getItem('edge_admin_user') || sessionStorage.getItem('edge_admin_user') || '{}');
+  let adminUser = {};
+  try {
+    adminUser = JSON.parse(localStorage.getItem('edge_admin_user') || sessionStorage.getItem('edge_admin_user') || '{}');
+  } catch (e) {}
 
   if (!adminToken) {
     window.location.replace('login');
@@ -35,6 +52,26 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-topbar-logout')?.addEventListener('click', handleLogout);
   document.getElementById('btn-sidebar-logout')?.addEventListener('click', handleLogout);
 
+  const adminSidebar = document.getElementById('admin-sidebar');
+  const mobileSidebarBtn = document.getElementById('mobile-sidebar-btn');
+  const sidebarBackdrop = document.getElementById('admin-sidebar-backdrop');
+
+  function closeMobileSidebar() {
+    adminSidebar?.classList.remove('open');
+    sidebarBackdrop?.classList.remove('visible');
+    mobileSidebarBtn?.setAttribute('aria-expanded', 'false');
+  }
+
+  mobileSidebarBtn?.addEventListener('click', () => {
+    const isOpen = adminSidebar?.classList.toggle('open');
+    sidebarBackdrop?.classList.toggle('visible', Boolean(isOpen));
+    mobileSidebarBtn.setAttribute('aria-expanded', String(Boolean(isOpen)));
+  });
+  sidebarBackdrop?.addEventListener('click', closeMobileSidebar);
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape') closeMobileSidebar();
+  });
+
   // التحقق من حالة اتصال خادم وقاعدة بيانات MongoDB
   async function checkBackendStatus() {
     const badge = document.getElementById('db-status-badge');
@@ -48,11 +85,11 @@ document.addEventListener('DOMContentLoaded', () => {
         badge.innerHTML = '<i class="fa-solid fa-database"></i> MongoDB متصل ✅';
       } else {
         badge.className = 'badge-status in_progress';
-        badge.innerHTML = '<i class="fa-solid fa-server"></i> وضع التخزين التلقائي';
+        badge.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> قاعدة البيانات غير متاحة - الحفظ متوقف';
       }
     } catch (e) {
       badge.className = 'badge-status pending';
-      badge.innerHTML = '<i class="fa-solid fa-hard-drive"></i> تخزين محلي (Offline)';
+      badge.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> الخادم غير متاح';
     }
   }
 
@@ -182,6 +219,7 @@ document.addEventListener('DOMContentLoaded', () => {
   navLinks.forEach(link => {
     link.addEventListener('click', (e) => {
       e.preventDefault();
+      closeMobileSidebar();
       const target = link.getAttribute('data-view');
       const title = link.getAttribute('data-title') || link.textContent.trim();
       const pkgFilter = link.getAttribute('data-pkg-filter');
@@ -193,9 +231,10 @@ document.addEventListener('DOMContentLoaded', () => {
      3. حساب وتحديث الإحصائيات الشاملة (Statistics Calculation)
      ========================================================================== */
   let liveAdminOrders = [];
+  let hasLoadedServerOrders = false;
 
   function getEffectiveOrders() {
-    if (liveAdminOrders && liveAdminOrders.length > 0) return liveAdminOrders;
+    if (hasLoadedServerOrders) return liveAdminOrders;
     try {
       return JSON.parse(localStorage.getItem('edge_orders') || '[]');
     } catch (e) {
@@ -313,26 +352,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const curStatus = statusLabels[order.status] || statusLabels.pending;
       const curPay = payLabels[order.paymentStatus] || payLabels.unpaid;
+      const safeOrderId = escapeHtml(order.id);
+      const whatsappNumber = String(order.clientPhone || '').replace(/\D/g, '');
 
       tr.innerHTML = `
         <td>
-          <strong style="color:var(--edge-cyan-glow);">${order.id}</strong>
-          <div style="font-size:0.75rem; color:var(--text-dim);">${order.dateFormatted || 'مؤخراً'}</div>
+          <strong style="color:var(--edge-cyan-glow);">${safeOrderId}</strong>
+          <div style="font-size:0.75rem; color:var(--text-dim);">${escapeHtml(order.dateFormatted || 'مؤخراً')}</div>
         </td>
         <td>
-          <div style="font-weight:700;">${order.clientName}</div>
-          <div style="font-size:0.8rem; color:var(--text-muted);">${order.brandName || 'براند غير محدد'}</div>
-          <div style="font-size:0.8rem; direction:ltr; text-align:right; color:var(--text-dim);">${order.clientPhone}</div>
+          <div style="font-weight:700;">${escapeHtml(order.clientName)}</div>
+          <div style="font-size:0.8rem; color:var(--text-muted);">${escapeHtml(order.brandName || 'براند غير محدد')}</div>
+          <div style="font-size:0.8rem; direction:ltr; text-align:right; color:var(--text-dim);">${escapeHtml(order.clientPhone)}</div>
         </td>
         <td>
-          <div style="font-weight:600;">${order.service}</div>
-          <span style="font-size:0.75rem; color:var(--text-accent);">${order.categoryName || 'خدمة تصميم'}</span>
+          <div style="font-weight:600;">${escapeHtml(order.service)}</div>
+          <span style="font-size:0.75rem; color:var(--text-accent);">${escapeHtml(order.categoryName || 'خدمة تصميم')}</span>
         </td>
         <td>
-          <strong style="font-family:var(--font-heading); color:#fff;">${order.price} ج.م</strong>
+          <strong style="font-family:var(--font-heading); color:#fff;">${escapeHtml(order.price)} ج.م</strong>
         </td>
         <td>
-          <select class="form-select select-table-status" data-order-id="${order.id}" style="padding:0.35rem 0.6rem; font-size:0.8rem; width:auto; border-radius:var(--radius-sm);">
+          <select class="form-select select-table-status" data-order-id="${safeOrderId}" style="padding:0.35rem 0.6rem; font-size:0.8rem; width:auto; border-radius:var(--radius-sm);">
             <option value="pending" ${order.status === 'pending' ? 'selected' : ''}>🟡 قيد المراجعة</option>
             <option value="in_progress" ${order.status === 'in_progress' ? 'selected' : ''}>🔵 قيد التنفيذ</option>
             <option value="completed" ${order.status === 'completed' ? 'selected' : ''}>🟢 مكتمل ومسلّم</option>
@@ -340,7 +381,7 @@ document.addEventListener('DOMContentLoaded', () => {
           </select>
         </td>
         <td>
-          <select class="form-select select-table-pay" data-order-id="${order.id}" style="padding:0.35rem 0.6rem; font-size:0.8rem; width:auto; border-radius:var(--radius-sm);">
+          <select class="form-select select-table-pay" data-order-id="${safeOrderId}" style="padding:0.35rem 0.6rem; font-size:0.8rem; width:auto; border-radius:var(--radius-sm);">
             <option value="unpaid" ${order.paymentStatus === 'unpaid' ? 'selected' : ''}>❌ غير مدفوع</option>
             <option value="deposit_paid" ${order.paymentStatus === 'deposit_paid' ? 'selected' : ''}>⏳ عربون 50%</option>
             <option value="fully_paid" ${order.paymentStatus === 'fully_paid' ? 'selected' : ''}>✅ مدفوع بالكامل</option>
@@ -348,13 +389,13 @@ document.addEventListener('DOMContentLoaded', () => {
         </td>
         <td>
           <div style="display:flex; gap:0.4rem;">
-            <button class="btn btn-outline btn-sm btn-view-order" data-order-id="${order.id}" title="عرض تفاصيل الطلب كاملة">
+            <button class="btn btn-outline btn-sm btn-view-order" data-order-id="${safeOrderId}" title="عرض تفاصيل الطلب كاملة">
               <i class="fa-solid fa-eye"></i> التفاصيل
             </button>
-            <a href="https://wa.me/2${order.clientPhone?.replace(/\D/g, '')}" target="_blank" class="btn btn-sm btn-success" title="محادثة واتساب سريعة">
+            <a href="https://wa.me/${whatsappNumber}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-success" title="محادثة واتساب سريعة">
               <i class="fa-brands fa-whatsapp"></i>
             </a>
-            <button class="btn btn-danger btn-sm btn-delete-order" data-order-id="${order.id}" title="حذف الطلب">
+            <button class="btn btn-danger btn-sm btn-delete-order" data-order-id="${safeOrderId}" title="حذف الطلب">
               <i class="fa-solid fa-trash-can"></i>
             </button>
           </div>
@@ -419,6 +460,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       const data = await res.json();
       if (data.success && Array.isArray(data.orders)) {
+        hasLoadedServerOrders = true;
         liveAdminOrders = data.orders.map(o => ({
           id: o.orderId || o.id,
           orderId: o.orderId || o.id,
@@ -454,7 +496,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateStatistics();
       }
     } catch (e) {
-      // وضع التخزين الذاتي الاحتياطي
+      console.warn('تعذر جلب الطلبات الحالية من الخادم:', e.message);
     }
   }
 
@@ -541,16 +583,8 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   async function updateOrderStatus(orderId, newStatus) {
-    const orders = JSON.parse(localStorage.getItem('edge_orders') || '[]');
-    const target = orders.find(o => o.id === orderId);
-    if (target) {
-      target.status = newStatus;
-      localStorage.setItem('edge_orders', JSON.stringify(orders));
-      updateStatistics();
-    }
-
     try {
-      await fetch(`/api/orders/${orderId}`, {
+      const response = await fetch(`/api/orders/${encodeURIComponent(orderId)}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -558,20 +592,18 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         body: JSON.stringify({ status: newStatus })
       });
-    } catch (e) {}
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.message || 'تعذر تحديث حالة الطلب.');
+      await fetchServerOrders();
+    } catch (error) {
+      alert(error.message || 'تعذر تحديث حالة الطلب.');
+      renderOrdersTable();
+    }
   }
 
   async function updateOrderPayment(orderId, newPay) {
-    const orders = JSON.parse(localStorage.getItem('edge_orders') || '[]');
-    const target = orders.find(o => o.id === orderId);
-    if (target) {
-      target.paymentStatus = newPay;
-      localStorage.setItem('edge_orders', JSON.stringify(orders));
-      updateStatistics();
-    }
-
     try {
-      await fetch(`/api/orders/${orderId}`, {
+      const response = await fetch(`/api/orders/${encodeURIComponent(orderId)}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -579,40 +611,51 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         body: JSON.stringify({ paymentStatus: newPay })
       });
-    } catch (e) {}
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.message || 'تعذر تحديث حالة الدفع.');
+      await fetchServerOrders();
+    } catch (error) {
+      alert(error.message || 'تعذر تحديث حالة الدفع.');
+      renderOrdersTable();
+    }
   }
 
   async function deleteOrder(orderId) {
-    let orders = JSON.parse(localStorage.getItem('edge_orders') || '[]');
-    orders = orders.filter(o => o.id !== orderId);
-    localStorage.setItem('edge_orders', JSON.stringify(orders));
-    renderOrdersTable();
-    updateStatistics();
-
     try {
-      await fetch(`/api/orders/${orderId}`, {
+      const response = await fetch(`/api/orders/${encodeURIComponent(orderId)}`, {
         method: 'DELETE',
         headers: { 'Authorization': 'Bearer ' + adminToken }
       });
-    } catch (e) {}
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.message || 'تعذر حذف الطلب.');
+      liveAdminOrders = liveAdminOrders.filter(order => order.id !== orderId);
+      localStorage.setItem('edge_orders', JSON.stringify(liveAdminOrders));
+      renderOrdersTable();
+      updateStatistics();
+    } catch (error) {
+      alert(error.message || 'تعذر حذف الطلب.');
+    }
   }
 
   // تصفير وإفراغ كافة الطلبات بنقرة واحدة
   const btnClearAllOrders = document.getElementById('btn-clear-all-orders');
   btnClearAllOrders?.addEventListener('click', async () => {
     if (confirm('هل أنت متأكد من تصفير وإفراغ سجل الطلبات بالكامل؟ ستصبح الإحصائيات صفراً.')) {
-      localStorage.setItem('edge_orders', JSON.stringify([]));
-      renderOrdersTable();
-      updateStatistics();
-
       try {
-        await fetch('/api/orders', {
+        const response = await fetch('/api/orders', {
           method: 'DELETE',
           headers: { 'Authorization': 'Bearer ' + adminToken }
         });
-      } catch (e) {}
-
-      alert('تم تصفير جميع الطلبات بنجاح. السجل الآن فارغ 100%.');
+        const result = await response.json();
+        if (!response.ok || !result.success) throw new Error(result.message || 'تعذر حذف الطلبات.');
+        liveAdminOrders = [];
+        localStorage.setItem('edge_orders', JSON.stringify([]));
+        renderOrdersTable();
+        updateStatistics();
+        alert('تم تصفير جميع الطلبات بنجاح.');
+      } catch (error) {
+        alert(error.message || 'تعذر تصفير الطلبات.');
+      }
     }
   });
 
@@ -638,7 +681,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.target === manualOrderModal) closeManualOrderModal();
   });
 
-  manualOrderForm?.addEventListener('submit', (e) => {
+  manualOrderForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
 
     const name = document.getElementById('m-client-name').value.trim();
@@ -658,7 +701,6 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const newOrder = {
-      id: 'ORD-' + Math.floor(1000 + Math.random() * 9000),
       createdAt: new Date().toISOString(),
       dateFormatted: 'اليوم، ' + new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }),
       service: serviceName,
@@ -674,31 +716,44 @@ document.addEventListener('DOMContentLoaded', () => {
       details: {
         'ملاحظات ومواصفات الاتفاق': notes
       },
-      status: status,
-      paymentStatus: payment
+      status: 'pending',
+      paymentStatus: 'unpaid'
     };
 
-    const orders = JSON.parse(localStorage.getItem('edge_orders') || '[]');
-    orders.unshift(newOrder);
-    localStorage.setItem('edge_orders', JSON.stringify(orders));
-
-    // إرسال الطلب إلى قاعدة بيانات MongoDB
     try {
-      fetch('/api/orders', {
+      const response = await fetch('/api/orders', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + adminToken
         },
         body: JSON.stringify(newOrder)
       });
-    } catch (e) {}
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.message || 'تعذر حفظ الطلب.');
+      const createdOrder = result.order;
 
-    closeManualOrderModal();
-    manualOrderForm.reset();
-    renderOrdersTable();
-    updateStatistics();
-    alert(`تم تسجيل الطلب رقم ${newOrder.id} بنجاح!`);
+      if (status !== 'pending' || payment !== 'unpaid') {
+        const updateResponse = await fetch(`/api/orders/${encodeURIComponent(createdOrder.orderId)}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + adminToken
+          },
+          body: JSON.stringify({ status, paymentStatus: payment, adminNotes: notes })
+        });
+        const updateResult = await updateResponse.json();
+        if (!updateResponse.ok || !updateResult.success) {
+          throw new Error(`تم إنشاء الطلب ${createdOrder.orderId} بحالة افتراضية، لكن تعذر تطبيق الحالة المختارة: ${updateResult.message || ''}`);
+        }
+      }
+
+      closeManualOrderModal();
+      manualOrderForm.reset();
+      await fetchServerOrders();
+      alert(`تم تسجيل الطلب رقم ${createdOrder.orderId} بنجاح.`);
+    } catch (error) {
+      alert(error.message || 'تعذر حفظ الطلب.');
+    }
   });
 
   /* ==========================================================================
@@ -715,14 +770,15 @@ document.addEventListener('DOMContentLoaded', () => {
       order = localOrders.find(o => (o.id === orderId || o.orderId === orderId));
     }
     if (!order || !orderModal || !orderModalBody) return;
+    const colorValue = value => /^#[0-9a-f]{6}$/i.test(value || '') ? value : '#0A58CA';
 
     let detailsListHtml = '';
     if (order.details) {
       for (const [k, v] of Object.entries(order.details)) {
         detailsListHtml += `
           <div style="display:flex; justify-content:space-between; padding:0.6rem 0; border-bottom:1px dashed var(--border-subtle);">
-            <strong style="color:var(--text-muted); font-size:0.9rem;">${k}:</strong>
-            <span style="max-width:65%; text-align:left; color:#fff; font-size:0.92rem;">${v}</span>
+            <strong style="color:var(--text-muted); font-size:0.9rem;">${escapeHtml(k)}:</strong>
+            <span style="max-width:65%; text-align:left; color:#fff; font-size:0.92rem;">${escapeHtml(typeof v === 'string' ? v : JSON.stringify(v))}</span>
           </div>
         `;
       }
@@ -738,28 +794,32 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!f) return;
         const isObj = typeof f === 'object' && f !== null;
         const name = isObj ? (f.name || 'ملف مرفق') : String(f);
-        const dataUrl = isObj && f.data ? f.data : null;
+        const candidateDataUrl = isObj && typeof f.data === 'string' ? f.data : '';
+        const dataUrl = /^data:(?:image\/(?:jpeg|png|webp)|application\/pdf);base64,[a-z0-9+/=]+$/i.test(candidateDataUrl)
+          ? escapeHtml(candidateDataUrl)
+          : '';
         const sizeStr = isObj && f.size ? `${(f.size / 1024).toFixed(1)} KB` : '';
-        const isImage = dataUrl && (dataUrl.startsWith('data:image') || (f.type && f.type.startsWith('image/')) || /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(name));
+        const isImage = dataUrl && /^data:image\//i.test(dataUrl);
+        const safeName = escapeHtml(name);
 
         if (dataUrl) {
           filesStr += `
             <div style="display:flex; align-items:center; justify-content:space-between; background:rgba(255,255,255,0.03); border:1px solid var(--border-subtle); border-radius:10px; padding:0.7rem 1rem; flex-wrap:wrap; gap:0.6rem;">
               <div style="display:flex; align-items:center; gap:0.8rem;">
                 ${isImage 
-                  ? `<img src="${dataUrl}" style="width:48px; height:48px; object-fit:cover; border-radius:8px; border:1px solid rgba(255,255,255,0.15); cursor:pointer;" onclick="window.open('${dataUrl}', '_blank')" alt="${name}" title="اضغط للتكبير">` 
+                  ? `<img src="${dataUrl}" style="width:48px; height:48px; object-fit:cover; border-radius:8px; border:1px solid rgba(255,255,255,0.15);" alt="${safeName}" title="معاينة الملف">`
                   : `<div style="width:48px; height:48px; border-radius:8px; background:rgba(34,211,238,0.1); display:flex; align-items:center; justify-content:center; color:var(--edge-cyan-glow);"><i class="fa-solid fa-file-arrow-down fa-xl"></i></div>`
                 }
                 <div>
-                  <div style="font-weight:600; color:#fff; font-size:0.92rem; word-break:break-all;">${name}</div>
-                  ${sizeStr ? `<span style="font-size:0.75rem; color:var(--text-dim);">${sizeStr}</span>` : ''}
+                  <div style="font-weight:600; color:#fff; font-size:0.92rem; word-break:break-all;">${safeName}</div>
+                  ${sizeStr ? `<span style="font-size:0.75rem; color:var(--text-dim);">${escapeHtml(sizeStr)}</span>` : ''}
                 </div>
               </div>
               <div style="display:flex; gap:0.5rem; align-items:center;">
-                <a href="${dataUrl}" download="${name}" class="btn btn-primary btn-sm" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.4rem 0.8rem; font-size:0.82rem;">
+                <a href="${dataUrl}" download="${safeName}" rel="noopener noreferrer" class="btn btn-primary btn-sm" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.4rem 0.8rem; font-size:0.82rem;">
                   <i class="fa-solid fa-download"></i> تحميل الملف
                 </a>
-                <a href="${dataUrl}" target="_blank" class="btn btn-outline btn-sm" style="display:inline-flex; align-items:center; gap:0.3rem; padding:0.4rem 0.7rem; font-size:0.82rem;">
+                <a href="${dataUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-outline btn-sm" style="display:inline-flex; align-items:center; gap:0.3rem; padding:0.4rem 0.7rem; font-size:0.82rem;">
                   <i class="fa-solid fa-eye"></i> معاينة
                 </a>
               </div>
@@ -769,7 +829,7 @@ document.addEventListener('DOMContentLoaded', () => {
           filesStr += `
             <div style="display:flex; align-items:center; justify-content:space-between; background:rgba(255,255,255,0.02); border:1px dashed var(--border-subtle); border-radius:10px; padding:0.7rem 1rem; flex-wrap:wrap; gap:0.5rem;">
               <span style="color:#fff; font-size:0.9rem; display:flex; align-items:center; gap:0.5rem;">
-                <i class="fa-regular fa-file-lines" style="color:var(--edge-cyan-glow);"></i> ${name}
+                <i class="fa-regular fa-file-lines" style="color:var(--edge-cyan-glow);"></i> ${safeName}
               </span>
               <span style="font-size:0.78rem; color:#f59e0b; background:rgba(245,158,11,0.1); padding:0.25rem 0.6rem; border-radius:6px;">
                 <i class="fa-brands fa-whatsapp"></i> مسجل بالاسم فقط (يمكن طلبه عبر واتساب العميل)
@@ -787,14 +847,14 @@ document.addEventListener('DOMContentLoaded', () => {
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem;">
         <div>
           <span style="font-size:0.85rem; color:var(--text-dim);">رقم المعاملة:</span>
-          <h2 style="font-size:1.6rem; color:var(--edge-cyan-glow);">${order.id}</h2>
-          <span style="font-size:0.8rem; color:var(--text-muted);">${order.dateFormatted || ''}</span>
+          <h2 style="font-size:1.6rem; color:var(--edge-cyan-glow);">${escapeHtml(order.id)}</h2>
+          <span style="font-size:0.8rem; color:var(--text-muted);">${escapeHtml(order.dateFormatted || '')}</span>
         </div>
         <div style="display:flex; gap:0.8rem; align-items:center;">
           <button type="button" class="btn btn-outline" onclick="window.print()" title="طباعة فاتورة رسمية للطلب">
             <i class="fa-solid fa-print"></i> طباعة الفاتورة
           </button>
-          <a href="https://wa.me/2${order.clientPhone?.replace(/\D/g, '')}" target="_blank" class="btn btn-success">
+          <a href="https://wa.me/${String(order.clientPhone || '').replace(/\D/g, '')}" target="_blank" rel="noopener noreferrer" class="btn btn-success">
             <i class="fa-brands fa-whatsapp"></i> فتح واتساب العميل
           </a>
         </div>
@@ -803,21 +863,21 @@ document.addEventListener('DOMContentLoaded', () => {
       <div class="form-grid-2" style="background:rgba(4,9,20,0.5); border:1px solid var(--border-subtle); border-radius:12px; padding:1.2rem; margin-bottom:1.5rem;">
         <div>
           <span style="color:var(--text-dim); font-size:0.8rem;">بيانات العميل:</span>
-          <h4 style="margin:0.2rem 0; font-size:1.15rem;">${order.clientName}</h4>
-          <p style="color:var(--text-muted); font-size:0.9rem; margin:0;"><i class="fa-solid fa-building"></i> ${order.brandName || 'براند غير محدد'}</p>
-          <p style="color:var(--text-muted); font-size:0.9rem; margin:0;"><i class="fa-solid fa-phone"></i> ${order.clientPhone}</p>
-          ${order.clientEmail ? `<p style="color:var(--text-muted); font-size:0.9rem; margin:0;"><i class="fa-solid fa-envelope"></i> ${order.clientEmail}</p>` : ''}
+          <h4 style="margin:0.2rem 0; font-size:1.15rem;">${escapeHtml(order.clientName)}</h4>
+          <p style="color:var(--text-muted); font-size:0.9rem; margin:0;"><i class="fa-solid fa-building"></i> ${escapeHtml(order.brandName || 'براند غير محدد')}</p>
+          <p style="color:var(--text-muted); font-size:0.9rem; margin:0;"><i class="fa-solid fa-phone"></i> ${escapeHtml(order.clientPhone)}</p>
+          ${order.clientEmail ? `<p style="color:var(--text-muted); font-size:0.9rem; margin:0;"><i class="fa-solid fa-envelope"></i> ${escapeHtml(order.clientEmail)}</p>` : ''}
         </div>
         <div>
           <span style="color:var(--text-dim); font-size:0.8rem;">الخدمة والتكلفة:</span>
-          <h4 style="margin:0.2rem 0; font-size:1.15rem; color:var(--edge-cyan-glow);">${order.service}</h4>
-          <p style="color:#fff; font-size:1.1rem; font-family:var(--font-heading); margin:0.3rem 0;">السعر: <strong>${order.price} ج.م</strong></p>
+          <h4 style="margin:0.2rem 0; font-size:1.15rem; color:var(--edge-cyan-glow);">${escapeHtml(order.service)}</h4>
+          <p style="color:#fff; font-size:1.1rem; font-family:var(--font-heading); margin:0.3rem 0;">السعر: <strong>${escapeHtml(order.price)} ج.م</strong></p>
           <div style="margin-top:0.6rem;">
             <span style="font-size:0.8rem; color:var(--text-dim);">ألوان الهوية المطلوبة:</span>
             <div style="display:flex; align-items:center; gap:8px; margin-top:4px;">
-              <span style="display:inline-block; width:22px; height:22px; border-radius:50%; background:${order.colors?.primary}; border:1px solid #fff;" title="أساسي: ${order.colors?.primary}"></span>
-              <span style="display:inline-block; width:22px; height:22px; border-radius:50%; background:${order.colors?.secondary}; border:1px solid #fff;" title="ثانوي: ${order.colors?.secondary}"></span>
-              <span style="display:inline-block; width:22px; height:22px; border-radius:50%; background:${order.colors?.accent}; border:1px solid #fff;" title="إضاءة: ${order.colors?.accent}"></span>
+              <span style="display:inline-block; width:22px; height:22px; border-radius:50%; background:${colorValue(order.colors?.primary)}; border:1px solid #fff;" title="أساسي: ${colorValue(order.colors?.primary)}"></span>
+              <span style="display:inline-block; width:22px; height:22px; border-radius:50%; background:${colorValue(order.colors?.secondary)}; border:1px solid #fff;" title="ثانوي: ${colorValue(order.colors?.secondary)}"></span>
+              <span style="display:inline-block; width:22px; height:22px; border-radius:50%; background:${colorValue(order.colors?.accent)}; border:1px solid #fff;" title="إضاءة: ${colorValue(order.colors?.accent)}"></span>
             </div>
           </div>
         </div>
@@ -862,37 +922,63 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let selectedRawFiles = [];
 
-  // ضغط وتصغير حجم الصورة عبر Canvas لجعل الرفع فائق السرعة
-  function compressImage(file, maxWidth = 1200, quality = 0.75) {
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const img = new Image();
-        img.onload = () => {
-          let width = img.width;
-          let height = img.height;
-
-          if (width > maxWidth) {
-            height = Math.round((height * maxWidth) / width);
-            width = maxWidth;
-          }
-
-          const canvas = document.createElement('canvas');
-          canvas.width = width;
-          canvas.height = height;
-
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0, width, height);
-
-          // تصدير كـ WebP أو JPEG بحجم خفيف جداً
-          const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
-          resolve(compressedBase64);
-        };
-        img.onerror = () => resolve(e.target.result);
-        img.src = e.target.result;
+  function compressImage(file, maxWidth = 1600, quality = 0.82) {
+    return new Promise((resolve, reject) => {
+      const objectUrl = URL.createObjectURL(file);
+      const image = new Image();
+      image.onload = () => {
+        const scale = Math.min(1, maxWidth / image.width);
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(image.width * scale);
+        canvas.height = Math.round(image.height * scale);
+        const context = canvas.getContext('2d');
+        if (!context) {
+          URL.revokeObjectURL(objectUrl);
+          reject(new Error('تعذر تجهيز الصورة للرفع.'));
+          return;
+        }
+        context.drawImage(image, 0, 0, canvas.width, canvas.height);
+        URL.revokeObjectURL(objectUrl);
+        canvas.toBlob(blob => {
+          if (blob) resolve(blob);
+          else reject(new Error('تعذر ضغط الصورة.'));
+        }, 'image/jpeg', quality);
       };
-      reader.readAsDataURL(file);
+      image.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        reject(new Error('صيغة الصورة غير مدعومة.'));
+      };
+      image.src = objectUrl;
     });
+  }
+
+  async function uploadProjectImage(file) {
+    const signatureResponse = await fetch('/api/uploads/cloudinary-signature', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + adminToken }
+    });
+    const signatureData = await signatureResponse.json();
+    if (!signatureResponse.ok || !signatureData.success) {
+      throw new Error(signatureData.message || 'تعذر إعداد رفع الصورة.');
+    }
+
+    const imageBlob = await compressImage(file);
+    const formData = new FormData();
+    formData.append('file', imageBlob, `${Date.now()}.jpg`);
+    formData.append('api_key', signatureData.apiKey);
+    formData.append('timestamp', signatureData.timestamp);
+    formData.append('folder', signatureData.folder);
+    formData.append('signature', signatureData.signature);
+
+    const uploadResponse = await fetch(`https://api.cloudinary.com/v1_1/${encodeURIComponent(signatureData.cloudName)}/image/upload`, {
+      method: 'POST',
+      body: formData
+    });
+    const uploadData = await uploadResponse.json();
+    if (!uploadResponse.ok || !uploadData.secure_url) {
+      throw new Error(uploadData.error?.message || 'فشل رفع الصورة إلى Cloudinary.');
+    }
+    return uploadData.secure_url;
   }
 
   // اختيار الصور
@@ -952,7 +1038,7 @@ document.addEventListener('DOMContentLoaded', () => {
           if (uploadProgressText) {
             uploadProgressText.innerHTML = `<i class="fa-solid fa-cloud-arrow-up fa-fade" style="color:var(--edge-cyan-glow);"></i> جاري رفع ونشر المشروع (${i + 1} من ${totalItems})...`;
           }
-          finalImg = await compressImage(selectedRawFiles[i]);
+          finalImg = await uploadProjectImage(selectedRawFiles[i]);
         } else if (imgUrlField) {
           finalImg = imgUrlField;
         }
@@ -973,25 +1059,20 @@ document.addEventListener('DOMContentLoaded', () => {
           showInHome: showInHome
         };
 
-        customProjects.unshift(newProject);
-
-        // إرسال المشروع إلى قاعدة بيانات MongoDB عبر السيرفر
-        try {
-          const res = await fetch('/api/projects', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer ' + adminToken
-            },
-            body: JSON.stringify(newProject)
-          });
-          const savedData = await res.json();
-          if (savedData.success && savedData.project) {
-            newProject.id = savedData.project.projectId || savedData.project._id || newProject.id;
-          }
-        } catch (err) {
-          console.error('فشل إرسال المشروع للسيرفر:', err);
+        const res = await fetch('/api/projects', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + adminToken
+          },
+          body: JSON.stringify(newProject)
+        });
+        const savedData = await res.json();
+        if (!res.ok || !savedData.success || !savedData.project) {
+          throw new Error(savedData.message || 'تعذر حفظ المشروع.');
         }
+        newProject.id = savedData.project.projectId || savedData.project._id || newProject.id;
+        customProjects.unshift(newProject);
 
         // تحديث شريط التقدم بنسبة مئوية
         const percent = Math.round(((i + 1) / totalItems) * 100);
@@ -1027,7 +1108,7 @@ document.addEventListener('DOMContentLoaded', () => {
       console.error('خطأ أثناء رفع المشاريع:', mainErr);
       if (uploadProgressContainer) uploadProgressContainer.style.display = 'none';
       if (btnSubmitProjects) btnSubmitProjects.disabled = false;
-      alert('حدث خطأ أثناء معالجة الصور، يرجى المحاولة مجدداً.');
+      alert(mainErr.message || 'حدث خطأ أثناء معالجة الصور، يرجى المحاولة مجدداً.');
     }
   });
 
@@ -1094,27 +1175,28 @@ document.addEventListener('DOMContentLoaded', () => {
     filteredProjects.forEach(proj => {
       const card = document.createElement('div');
       card.className = 'admin-project-card';
+      const projectId = escapeHtml(proj.id);
 
       card.innerHTML = `
-        <img src="${proj.image}" alt="${proj.title}" class="admin-project-img">
+        <img src="${safeImageSource(proj.image)}" alt="${escapeHtml(proj.title)}" class="admin-project-img">
         <div class="admin-project-body">
           <div style="display:flex; justify-content:space-between; align-items:center;">
-            <span class="badge-status in_progress">${proj.categoryName}</span>
+            <span class="badge-status in_progress">${escapeHtml(proj.categoryName)}</span>
             <div style="display:flex; align-items:center; gap:0.5rem;">
-              <button class="btn btn-outline btn-sm btn-toggle-home" data-id="${proj.id}" title="تغيير حالة الظهور بالصفحة الرئيسية" style="font-size:0.75rem; padding:0.25rem 0.6rem; cursor:pointer; ${proj.showInHome !== false ? 'color:#FBBF24; border-color:rgba(251,191,36,0.4); background:rgba(251,191,36,0.1);' : 'color:var(--text-dim); border-color:var(--border-subtle);'}">
+              <button class="btn btn-outline btn-sm btn-toggle-home" data-id="${projectId}" title="تغيير حالة الظهور بالصفحة الرئيسية" style="font-size:0.75rem; padding:0.25rem 0.6rem; cursor:pointer; ${proj.showInHome !== false ? 'color:#FBBF24; border-color:rgba(251,191,36,0.4); background:rgba(251,191,36,0.1);' : 'color:var(--text-dim); border-color:var(--border-subtle);'}">
                 <i class="fa-solid fa-star"></i> ${proj.showInHome !== false ? 'في الرئيسية' : 'مخفي من الرئيسية'}
               </button>
-              <span style="font-size:0.75rem; color:var(--text-dim);">${proj.year}</span>
+              <span style="font-size:0.75rem; color:var(--text-dim);">${escapeHtml(proj.year)}</span>
             </div>
           </div>
-          <h4 style="font-size:1.1rem; margin:0.3rem 0;">${proj.title}</h4>
-          <p style="font-size:0.82rem; color:var(--text-dim); margin-bottom:0.2rem;"><i class="fa-solid fa-user-tie"></i> ${proj.client || 'عميل EDGE'}</p>
-          <div style="font-size:0.75rem; color:var(--text-dim); margin-bottom:0.6rem;">${(proj.tags || []).map(t => '#' + t).join(' ')}</div>
+          <h4 style="font-size:1.1rem; margin:0.3rem 0;">${escapeHtml(proj.title)}</h4>
+          <p style="font-size:0.82rem; color:var(--text-dim); margin-bottom:0.2rem;"><i class="fa-solid fa-user-tie"></i> ${escapeHtml(proj.client || 'عميل EDGE')}</p>
+          <div style="font-size:0.75rem; color:var(--text-dim); margin-bottom:0.6rem;">${(proj.tags || []).map(t => '#' + escapeHtml(t)).join(' ')}</div>
           <div class="admin-project-actions">
-            <button class="btn btn-outline btn-sm btn-edit-proj" data-id="${proj.id}" style="flex:1;">
+            <button class="btn btn-outline btn-sm btn-edit-proj" data-id="${projectId}" style="flex:1;">
               <i class="fa-solid fa-pen-to-square"></i> تعديل
             </button>
-            <button class="btn btn-danger btn-sm btn-delete-proj" data-id="${proj.id}" title="حذف المشروع">
+            <button class="btn btn-danger btn-sm btn-delete-proj" data-id="${projectId}" title="حذف المشروع">
               <i class="fa-solid fa-trash-can"></i>
             </button>
           </div>
@@ -1130,20 +1212,24 @@ document.addEventListener('DOMContentLoaded', () => {
         const id = btn.getAttribute('data-id');
         let customProjects = getLocalProjects();
         const target = customProjects.find(p => p.id === id);
-        if (target) {
-          target.showInHome = !target.showInHome;
+        if (!target) return;
+        const showInHome = !target.showInHome;
+        try {
+          const response = await fetch(`/api/projects/${encodeURIComponent(id)}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + adminToken
+            },
+            body: JSON.stringify({ showInHome })
+          });
+          const result = await response.json();
+          if (!response.ok || !result.success) throw new Error(result.message || 'تعذر تحديث المشروع.');
+          target.showInHome = showInHome;
           safeSaveLocalProjects(customProjects);
           renderAdminProjects();
-          try {
-            await fetch(`/api/projects/${id}`, {
-              method: 'PUT',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + adminToken
-              },
-              body: JSON.stringify({ showInHome: target.showInHome })
-            });
-          } catch (e) {}
+        } catch (error) {
+          alert(error.message || 'تعذر تحديث المشروع.');
         }
       });
     });
@@ -1162,16 +1248,20 @@ document.addEventListener('DOMContentLoaded', () => {
         const id = btn.getAttribute('data-id');
         if (confirm('هل تريد بالتأكيد حذف هذا المشروع من معرض الأعمال؟')) {
           try {
-            await fetch(`/api/projects/${id}`, {
+            const response = await fetch(`/api/projects/${encodeURIComponent(id)}`, {
               method: 'DELETE',
               headers: { 'Authorization': 'Bearer ' + adminToken }
             });
-          } catch (e) {}
+            const result = await response.json();
+            if (!response.ok || !result.success) throw new Error(result.message || 'تعذر حذف المشروع.');
 
-          let customProjects = getLocalProjects();
-          customProjects = customProjects.filter(p => p.id !== id);
-          safeSaveLocalProjects(customProjects);
-          renderAdminProjects();
+            let customProjects = getLocalProjects();
+            customProjects = customProjects.filter(p => p.id !== id);
+            safeSaveLocalProjects(customProjects);
+            renderAdminProjects();
+          } catch (error) {
+            alert(error.message || 'تعذر حذف المشروع.');
+          }
         }
       });
     });
@@ -1183,17 +1273,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const editProjCloseBtn = document.getElementById('edit-proj-modal-close-btn');
   const editProjCancelBtn = document.getElementById('edit-proj-cancel-btn');
   const editProjImgInput = document.getElementById('edit-proj-img-file');
-  let editSelectedImgBase64 = '';
+  let editSelectedImgFile = null;
 
   editProjImgInput?.addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        editSelectedImgBase64 = event.target.result;
-        document.getElementById('edit-proj-file-label').textContent = `تم اختيار: ${file.name}`;
-      };
-      reader.readAsDataURL(file);
+      editSelectedImgFile = file;
+      document.getElementById('edit-proj-file-label').textContent = `تم اختيار: ${file.name}`;
     }
   });
 
@@ -1213,7 +1299,7 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('edit-proj-show-in-home').checked = proj.showInHome !== false;
     }
 
-    editSelectedImgBase64 = '';
+    editSelectedImgFile = null;
     document.getElementById('edit-proj-file-label').textContent = 'اختيار صورة جديدة من جهازك';
 
     editProjModal.classList.add('active');
@@ -1229,7 +1315,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.target === editProjModal) closeEditProjectModal();
   });
 
-  editProjForm?.addEventListener('submit', (e) => {
+  editProjForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
 
     const id = document.getElementById('edit-proj-id').value;
@@ -1241,7 +1327,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const tagsStr = document.getElementById('edit-proj-tags').value.trim();
     const showInHome = document.getElementById('edit-proj-show-in-home') ? document.getElementById('edit-proj-show-in-home').checked : true;
 
-    const finalImg = editSelectedImgBase64 || imgUrl || 'assets/img/logo-blue-bg.jpg';
+    let finalImg;
+    try {
+      finalImg = editSelectedImgFile
+        ? await uploadProjectImage(editSelectedImgFile)
+        : imgUrl || 'assets/img/logo-blue-bg.jpg';
+    } catch (error) {
+      alert(error.message || 'تعذر رفع الصورة.');
+      return;
+    }
 
     const categoryNames = {
       posts: 'بوستات (posts)',
@@ -1269,31 +1363,32 @@ document.addEventListener('DOMContentLoaded', () => {
       showInHome: showInHome
     };
 
-    let customProjects = getLocalProjects();
-    const existingIndex = customProjects.findIndex(p => p.id === id);
-
-    if (existingIndex !== -1) {
-      customProjects[existingIndex] = updatedProject;
-    } else {
-      customProjects.unshift(updatedProject);
-    }
-
-    // إرسال التحديث إلى قاعدة بيانات MongoDB
     try {
-      fetch(`/api/projects/${id}`, {
+      const updatePayload = { ...updatedProject };
+      if (!editSelectedImgFile && /^data:image\//i.test(finalImg)) delete updatePayload.image;
+      const response = await fetch(`/api/projects/${encodeURIComponent(id)}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ' + adminToken
         },
-        body: JSON.stringify(updatedProject)
+        body: JSON.stringify(updatePayload)
       });
-    } catch (e) {}
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.message || 'تعذر حفظ تعديلات المشروع.');
 
-    safeSaveLocalProjects(customProjects);
-    closeEditProjectModal();
-    renderAdminProjects();
-    alert('تم حفظ وتحديث بيانات المشروع بنجاح! التعديلات تظهر فوراً في المعرض.');
+      let customProjects = getLocalProjects();
+      const existingIndex = customProjects.findIndex(p => p.id === id);
+      if (existingIndex !== -1) customProjects[existingIndex] = updatedProject;
+      else customProjects.unshift(updatedProject);
+
+      safeSaveLocalProjects(customProjects);
+      closeEditProjectModal();
+      renderAdminProjects();
+      alert('تم حفظ وتحديث بيانات المشروع بنجاح.');
+    } catch (error) {
+      alert(error.message || 'تعذر حفظ تعديلات المشروع.');
+    }
   });
 
   /* ==========================================================================
@@ -1393,28 +1488,28 @@ document.addEventListener('DOMContentLoaded', () => {
       const card = document.createElement('div');
       card.className = `package-admin-card ${pkg.popular ? 'popular-card' : ''}`;
 
-      const badgeHtml = pkg.badge ? `<div class="package-badge-pill">${pkg.badge}</div>` : '';
+      const badgeHtml = pkg.badge ? `<div class="package-badge-pill">${escapeHtml(pkg.badge)}</div>` : '';
       const iconClass = catIcons[pkg.category] || 'fa-tag';
 
       const featuresHtml = (pkg.features || []).map(f => `
-        <li><i class="fa-solid fa-circle-check"></i> ${f}</li>
+        <li><i class="fa-solid fa-circle-check"></i> ${escapeHtml(f)}</li>
       `).join('');
 
-      const pkgId = pkg._id || pkg.id;
+      const pkgId = escapeHtml(pkg._id || pkg.id);
 
       card.innerHTML = `
         ${badgeHtml}
         <div>
           <div class="package-card-header">
             <div class="package-card-category">
-              <i class="fa-solid ${iconClass}"></i> ${pkg.categoryName || pkg.category}
+              <i class="fa-solid ${iconClass}"></i> ${escapeHtml(pkg.categoryName || pkg.category)}
             </div>
-            <h4 class="package-card-title">${pkg.name}</h4>
+            <h4 class="package-card-title">${escapeHtml(pkg.name)}</h4>
             <div class="package-card-price">
-              ${pkg.price} ${pkg.currency || 'ج.م'} <span>/ ${pkg.period || 'للتصميم'}</span>
+              ${escapeHtml(pkg.price)} ${escapeHtml(pkg.currency || 'ج.م')} <span>/ ${escapeHtml(pkg.period || 'للتصميم')}</span>
             </div>
           </div>
-          <p class="package-card-desc">${pkg.description || ''}</p>
+          <p class="package-card-desc">${escapeHtml(pkg.description || '')}</p>
           <ul class="package-card-features">
             ${featuresHtml}
           </ul>
@@ -1526,7 +1621,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       if (id) {
         // تعديل
-        const res = await fetch(`/api/packages/${id}`, {
+        const res = await fetch(`/api/packages/${encodeURIComponent(id)}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -1535,11 +1630,8 @@ document.addEventListener('DOMContentLoaded', () => {
           body: JSON.stringify(payload)
         });
         const data = await res.json();
-        if (data.success) {
-          alert('تم تحديث الباقة بنجاح!');
-        } else {
-          alert(data.message || 'حدث خطأ أثناء تعديل الباقة');
-        }
+        if (!res.ok || !data.success) throw new Error(data.message || 'حدث خطأ أثناء تعديل الباقة');
+        alert('تم تحديث الباقة بنجاح!');
       } else {
         // إضافة جديدة
         const res = await fetch('/api/packages', {
@@ -1551,23 +1643,12 @@ document.addEventListener('DOMContentLoaded', () => {
           body: JSON.stringify(payload)
         });
         const data = await res.json();
-        if (data.success) {
-          alert('تمت إضافة الباقة بنجاح!');
-        } else {
-          alert(data.message || 'حدث خطأ أثناء حفظ الباقة');
-        }
+        if (!res.ok || !data.success) throw new Error(data.message || 'حدث خطأ أثناء حفظ الباقة');
+        alert('تمت إضافة الباقة بنجاح!');
       }
     } catch (err) {
-      // Fallback محلي إذا كان السيرفر أوفلاين
-      if (id) {
-        const idx = localPackagesCache.findIndex(p => (p._id || p.id) == id);
-        if (idx !== -1) localPackagesCache[idx] = { ...localPackagesCache[idx], ...payload };
-      } else {
-        payload._id = 'pkg_' + Date.now();
-        localPackagesCache.unshift(payload);
-      }
-      localStorage.setItem('edge_custom_packages', JSON.stringify(localPackagesCache));
-      alert('تم حفظ الباقة محلياً!');
+      alert(err.message || 'تعذر حفظ الباقة. لم يتم حفظ أي تغييرات.');
+      return;
     }
 
     closePackageModal();
@@ -1579,16 +1660,16 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!confirm('هل أنت متأكد من رغبتك في حذف هذه الباقة نهائياً؟')) return;
 
     try {
-      const res = await fetch(`/api/packages/${id}`, {
+      const res = await fetch(`/api/packages/${encodeURIComponent(id)}`, {
         method: 'DELETE',
         headers: { 'Authorization': 'Bearer ' + adminToken }
       });
       const data = await res.json();
-      if (data.success) {
-        alert('تم حذف الباقة بنجاح.');
-      }
+      if (!res.ok || !data.success) throw new Error(data.message || 'تعذر حذف الباقة.');
+      alert('تم حذف الباقة بنجاح.');
     } catch (err) {
-      alert('تم الحذف من الواجهة.');
+      alert(err.message || 'تعذر حذف الباقة. لم يتم إجراء أي تغييرات.');
+      return;
     }
 
     localPackagesCache = localPackagesCache.filter(p => (p._id || p.id) != id);

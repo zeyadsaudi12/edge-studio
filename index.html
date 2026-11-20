@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="ar" dir="rtl" data-theme="light">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -28,15 +28,33 @@
   <header class="site-navbar">
     <div class="container nav-wrapper">
       <a href="#" class="brand-logo-container" title="EDGE Studio">
-        <img src="assets/img/logo-white.png" alt="EDGE Logo" class="brand-logo-img" id="nav-brand-logo">
+        <img src="assets/img/logo-blue.png" alt="EDGE Logo" class="brand-logo-img" id="nav-brand-logo">
       </a>
 
       <nav class="nav-menu" id="nav-menu">
         <a href="#hero" class="nav-link active">الرئيسية</a>
-        <a href="#portfolio" class="nav-link">معرض الأعمال</a>
-        <a href="#pricing" class="nav-link">قائمة الأسعار</a>
-        <a href="#order-wizard-section" class="nav-link">طلب تصميم جديد</a>
-        <a href="#why-us" class="nav-link">لماذا EDGE؟</a>
+        <details class="nav-dropdown nav-work-dropdown">
+          <summary class="nav-link">الأعمال <i class="fa-solid fa-chevron-down" aria-hidden="true"></i></summary>
+          <div class="nav-dropdown-menu">
+            <a href="/portfolio">معرض الأعمال بالكامل</a>
+            <span class="nav-dropdown-label">تصفح حسب النوع</span>
+            <a href="/portfolio?cat=posts">بوستات</a>
+            <a href="/portfolio?cat=covers">أغلفة</a>
+            <a href="/portfolio?cat=profiles">بروفايلات</a>
+            <a href="/portfolio?cat=certificates">شهادات تقدير</a>
+            <a href="/portfolio?cat=social">سوشيال ميديا</a>
+            <a href="/portfolio?cat=print">مطبوعات وتغليف</a>
+            <a href="/portfolio?cat=branding">هوية بصرية</a>
+          </div>
+        </details>
+        <a href="#pricing" class="nav-link">الأسعار</a>
+        <details class="nav-dropdown">
+          <summary class="nav-link">المزيد <i class="fa-solid fa-chevron-down" aria-hidden="true"></i></summary>
+          <div class="nav-dropdown-menu">
+            <a href="#why-us">لماذا EDGE؟</a>
+            <a href="#faq">الأسئلة الشائعة</a>
+          </div>
+        </details>
       </nav>
 
       <div class="nav-actions">
@@ -51,7 +69,7 @@
         </a>
 
         <!-- زر الموبايل للفتح والقفل -->
-        <button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="فتح القائمة">
+        <button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="فتح القائمة" aria-controls="nav-menu" aria-expanded="false">
           <i class="fa-solid fa-bars"></i>
         </button>
       </div>
@@ -66,10 +84,10 @@
           <i class="fa-solid fa-sparkles"></i> استوديو التصميم الإبداعي والهوية الرقمية
         </div>
         <h1 class="hero-title">
-          نحول أفكارك إلى <span class="text-gradient">تصاميم استثنائية</span> تبني قيمة حقيقية لعلامتك
+          تصميم يلفت، وهوية <span class="text-gradient">تترك أثرًا</span>
         </h1>
         <p class="hero-description">
-          منصتك المتكاملة لاستعراض أحدث أعمال التصميم الإبداعي وطلب خدماتك بدقة: تصاميم سوشيال ميديا تخطف التفاعل، مطبوعات راقية جاهزة للمطابع، وهويات بصرية كاملة تنبض بالتميز.
+          منشورات ومطبوعات وهويات بصرية مصممة بعناية، لتظهر علامتك بأفضل صورة — من أول فكرة حتى التسليم.
         </p>
 
         <div class="hero-buttons">
@@ -677,7 +695,7 @@
   </section>
 
   <!-- 7. قسم الأسئلة الشائعة (FAQ Section) -->
-  <section class="section" id="faq" style="padding:5rem 0; background:linear-gradient(180deg, transparent, rgba(10,88,202,0.04), transparent);">
+  <section class="section" id="faq">
     <div class="container" style="max-width:860px;">
       <div class="section-header">
         <div class="section-badge">

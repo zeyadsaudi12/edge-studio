@@ -91,6 +91,7 @@
         </button>
       </div>
     </aside>
+    <button class="admin-sidebar-backdrop" id="admin-sidebar-backdrop" aria-label="إغلاق قائمة الإدارة"></button>
 
     <!-- 2. المحتوى الرئيسي (Main Content) -->
     <main class="admin-main">
@@ -98,6 +99,9 @@
       <!-- الشريط العلوي (Topbar) -->
       <header class="admin-topbar">
         <div class="topbar-left">
+          <button type="button" class="mobile-sidebar-btn" id="mobile-sidebar-btn" aria-label="فتح قائمة الإدارة" aria-controls="admin-sidebar" aria-expanded="false">
+            <i class="fa-solid fa-bars"></i>
+          </button>
           <h1 class="topbar-title" id="current-view-title">نظرة عامة وإحصائيات الاستوديو</h1>
         </div>
 
@@ -690,11 +694,11 @@
           </div>
           <div class="form-group">
             <label class="form-label">كلمة المرور الجديدة *</label>
-            <input type="password" id="new-pass" class="form-input" placeholder="6 أحرف على الأقل" required minlength="6">
+            <input type="password" id="new-pass" class="form-input" placeholder="12 حرفاً على الأقل" required minlength="12" maxlength="72">
           </div>
           <div class="form-group">
             <label class="form-label">تأكيد كلمة المرور الجديدة *</label>
-            <input type="password" id="confirm-pass" class="form-input" placeholder="أعد كتابة كلمة المرور الجديدة" required minlength="6">
+            <input type="password" id="confirm-pass" class="form-input" placeholder="أعد كتابة كلمة المرور الجديدة" required minlength="12" maxlength="72">
           </div>
           <div style="display:flex; justify-content:flex-end; gap:0.8rem; margin-top:1.5rem;">
             <button type="button" class="btn btn-outline" id="pass-cancel-btn">إلغاء</button>
